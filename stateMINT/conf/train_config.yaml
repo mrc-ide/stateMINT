@@ -1,0 +1,11 @@
+predictor: "prevalence"
+
+
+lr: 3e-4
+epochs: 100
+batch_size: 128
+
+use_wandb: false
+wandb:
+  project: "stateMINT training"
+  name: "train-bs${batch_size}-lr${lr}"
