@@ -1,11 +1,40 @@
-predictor: "prevalence"
+# Data
+db_path: ???
+table_name: simulation_results
+window_size: 14
+lookback: 30
+train_stride: 1
+sim_limit: null
+param_limit: null
+min_prevalence: 0.01
+min_cases: 0.0
+use_cyclical_time: true
+num_workers: 4
+use_existing_split: false
+split_file: ""
 
+# Model
+d_model: 128
+d_state: 64
+d_conv: 4
+expand: 2
+n_layers: 4
 
+# Hyperparameters
+weight_decay: 1e-2
 lr: 3e-4
+batch_size: 512
 epochs: 100
-batch_size: 128
+patience: 16
 
+# General
+predictor: prevalence # prevalence | cases
+diff_loss_alpha: 0.05
+diff2_loss_beta: 0.0
+seed: 42
+loss_space: natural   # natural | transformed
+eps_prevalence: 1.0e-5
 use_wandb: false
 wandb:
-  project: "stateMINT training"
-  name: "train-bs${batch_size}-lr${lr}"
+  project: "stateMINT"
+  name: "train-${predictor}-1"

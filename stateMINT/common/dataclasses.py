@@ -1,6 +1,3 @@
-from enum import Enum
+from typing import Literal
 
-
-class Predictor(Enum):
-    prevalence = "prevalence"
-    cases = "cases"
+Predictor = Literal["prevalence", "cases"]
