@@ -126,7 +126,9 @@ def _filter_by_threshold(df: pd.DataFrame, target_col: str, threshold: float) ->
     valid = set(map(tuple, group_means[group_means >= threshold].index.tolist()))
     df["_ps"] = list(zip(df["parameter_index"], df["simulation_index"]))
 
-    log.info(f"After threshold filter: {len(valid)} parameter-simulation pairs, {len(df)} rows")
+    log.info(
+        f"Filtering with threshold {threshold} on {target_col}: {len(valid)} valid parameter-simulation pairs out of {len(group_means)}"
+    )
 
     return df[df["_ps"].isin(valid)]
 
