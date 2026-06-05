@@ -1,7 +1,7 @@
 import logging
 import time
 import duckdb
-import os
+from pathlib import Path
 from typing import Literal
 
 logging.basicConfig(level=logging.INFO)
@@ -147,7 +147,7 @@ def save_fetched_filtered_data(
             ORDER BY parameter_index, simulation_index, group_id
         """
 
-    out_path = os.path.join(output_folder, f"filtered_data_{predictor}.parquet")
+    out_path = Path(output_folder) / f"filtered_data_{predictor}.parquet"
     con.execute(
         f"""
         COPY ({query})

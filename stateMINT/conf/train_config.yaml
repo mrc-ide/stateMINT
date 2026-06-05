@@ -1,17 +1,11 @@
 # Data
-db_path: ???
-table_name: simulation_results
-window_size: 14
-lookback: 30
-train_stride: 1
-sim_limit: null
-param_limit: null
-min_prevalence: 0.01
-min_cases: 0.0
-use_cyclical_time: true
+data_file: "data/filtered_data_${predictor}.parquet"
 num_workers: 4
+min_prevalence: 0.01
+min_cases: 0.1
+use_cyclical_time: true
 use_existing_split: false
-split_file: ""
+split_file: "data/split_${predictor}.json"
 
 # Model
 d_model: 128
@@ -23,8 +17,8 @@ n_layers: 4
 # Hyperparameters
 weight_decay: 1e-2
 lr: 3e-4
-batch_size: 512
-epochs: 100
+batch_size: 256
+num_epochs: 100
 patience: 16
 
 # General
@@ -35,6 +29,7 @@ seed: 42
 loss_space: natural   # natural | transformed
 eps_prevalence: 1.0e-5
 use_wandb: false
+output_dir: "train_outputs/${predictor}"
 wandb:
   project: "stateMINT"
   name: "train-${predictor}-1"

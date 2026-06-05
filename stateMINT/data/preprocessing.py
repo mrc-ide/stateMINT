@@ -1,9 +1,9 @@
 import logging
 import math
-import os
 import random
 from dataclasses import dataclass, field
-from typing import Optional
+import pickle
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -60,9 +60,9 @@ class StandardScaler:
 
 @dataclass
 class PreparedData:
-    train_windows: list
-    val_windows: list
-    test_windows: list
+    train_data: list
+    val_data: list
+    test_data: list
     input_size: int
     scaler: StandardScaler
     train_param_sims: set[tuple[int, int]] = field(default_factory=set)
@@ -72,13 +72,13 @@ class PreparedData:
 
 def prepare_data(df: pd.DataFrame, cfg: DictConfig):
     random.seed(cfg.seed)
-    target_col = cfg.predictor
 
     # Filter by threshold
-    df = _filter_by_threshold(df, target_col, cfg.threshold)
+    threshold = cfg.min_prevalence if cfg.predictor == "prevalence" else cfg.min_cases
+    df = _filter_by_threshold(df, cfg.predictor, threshold)
 
     # split data
-    if cfg.use_existing_split and os.path.exists(cfg.split_file):
+    if cfg.use_existing_split and Path(cfg.split_file).exists():
         log.info(f"Loading existing split from {cfg.split_file}")
         train_ps, val_ps, test_ps = _load_split(cfg.split_file, df)
     else:
@@ -91,7 +91,7 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
     log.info(f"Split — train: {len(train_ps)}, val: {len(val_ps)}, test: {len(test_ps)}")
 
     # Scaler fitted on train data only
-    scaler = _fit_scaler(df, train_ps)
+    scaler = _fit_scaler(df, train_ps, cfg.output_dir)
 
     # Input size
     input_size = (
@@ -99,17 +99,15 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
     )  # time features + static + post9 flag, time_since_post9 (years)
     log.info(f"Input size for models set to {input_size}")
 
-    # Build windows
-    train_windows = _build_windows(df, train_ps, scaler, cfg, cfg.lookback, cfg.train_stride)
-    val_windows = _build_windows(df, val_ps, scaler, cfg, cfg.lookback, cfg.lookback)  # no overlap for val/test
-    test_windows = _build_windows(df, test_ps, scaler, cfg, cfg.lookback, cfg.lookback)  # no overlap for val/test
-
-    log.info(f"Windows — train: {len(train_windows)}, val: {len(val_windows)}, test: {len(test_windows)}")
+    # Build data
+    train_data = _build_data(df, train_ps, scaler, cfg)
+    val_data = _build_data(df, val_ps, scaler, cfg)
+    test_data = _build_data(df, test_ps, scaler, cfg)
 
     return PreparedData(
-        train_windows=train_windows,
-        val_windows=val_windows,
-        test_windows=test_windows,
+        train_data=train_data,
+        val_data=val_data,
+        test_data=test_data,
         input_size=input_size,
         scaler=scaler,
         train_param_sims=train_ps,
@@ -119,7 +117,11 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
 
 
 # -------------- internal helpers ----------------------------------------------------------
+
+
 def _filter_by_threshold(df: pd.DataFrame, target_col: str, threshold: float) -> pd.DataFrame:
+    """Filter parameter-simulation pairs where the mean target value is below the threshold."""
+
     group_means = df.groupby(["parameter_index", "simulation_index"])[target_col].mean()
     valid = set(map(tuple, group_means[group_means >= threshold].index.tolist()))
     df["_ps"] = list(zip(df["parameter_index"], df["simulation_index"]))
@@ -182,7 +184,7 @@ def _save_split(path, train_ps, val_ps, test_ps, df):
     log.info(f"Split saved to {path}")
 
 
-def _fit_scaler(df: pd.DataFrame, train_ps: set[tuple[int, int]]) -> StandardScaler:
+def _fit_scaler(df: pd.DataFrame, train_ps: set[tuple[int, int]], output_dir: str) -> StandardScaler:
     train_mask = df["_ps"].isin(train_ps)
     train_static = (
         df.loc[train_mask, ["_ps"] + STATIC_COVARS]
@@ -192,19 +194,23 @@ def _fit_scaler(df: pd.DataFrame, train_ps: set[tuple[int, int]]) -> StandardSca
     )
     scaler = StandardScaler()
     scaler.fit(train_static)
+
+    # TODO: check if need saving
+    save_path = Path(output_dir) / "static_scaler.pkl"
+    with open(save_path, "wb") as f:
+        pickle.dump(scaler, f)
+
     return scaler
 
 
-def _build_windows(
+def _build_data(
     df: pd.DataFrame,
     param_sims: set[tuple[int, int]],
     scaler: StandardScaler,
     cfg: DictConfig,
-    lookback: int,
-    stride: int,
-):
+) -> list[dict[str, np.ndarray]]:
     groups = df.groupby(["parameter_index", "simulation_index"])
-    windows = []
+    data = []
 
     for ps in param_sims:
         if ps not in groups.groups:
@@ -212,7 +218,7 @@ def _build_windows(
         sub = groups.get_group(ps).sort_values("timesteps")
         sub = sub.replace([np.inf, -np.inf], np.nan).dropna(subset=[cfg.predictor])
         T = len(sub)
-        if T < lookback:
+        if T == 0:
             continue
 
         abs_t = sub["abs_timesteps"].values.astype(np.float32)
@@ -244,14 +250,12 @@ def _build_windows(
         Y = transform_targets_np(Y_raw, cfg.predictor, cfg.eps_prevalence)
         W = sub["exposure_pd"].values.astype(np.float32) if cfg.predictor == "cases" else np.ones(T, dtype=np.float32)
 
-        for start in range(0, T - lookback + 1, stride):
-            end = start + lookback
-            windows.append(
-                {
-                    "x": X[start:end],  # (lookback, features)
-                    "y": Y[start:end],  # (lookback,)
-                    "w": W[start:end],  # (lookback,)
-                }
-            )
+        data.append(
+            {
+                "x": X,  # (T, input_size)
+                "y": Y,  # (T,)
+                "w": W,  # (T,)
+            }
+        )
 
-    return windows
+    return data
