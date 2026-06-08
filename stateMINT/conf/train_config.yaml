@@ -3,16 +3,21 @@ data_file: "data/filtered_data_${predictor}.parquet"
 num_workers: 4
 min_prevalence: 0.01
 min_cases: 0.1
+eps_prevalence: 1.0e-5
 use_cyclical_time: true
 use_existing_split: false
 split_file: "data/split_${predictor}.json"
 
 # Model
 d_model: 128
-d_state: 64
+n_layers: 4
+d_state: 64 # TODO: try 128 too?
 d_conv: 4
 expand: 2
-n_layers: 4
+head_dim: 64
+chunk_size: 256
+output_dim: 1
+dropout: 0.025
 
 # Hyperparameters
 weight_decay: 1e-2
@@ -27,7 +32,6 @@ diff_loss_alpha: 0.05
 diff2_loss_beta: 0.0
 seed: 42
 loss_space: natural   # natural | transformed
-eps_prevalence: 1.0e-5
 use_wandb: false
 output_dir: "train_outputs/${predictor}"
 wandb:
