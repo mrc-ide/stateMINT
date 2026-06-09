@@ -13,14 +13,13 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Debug run benchmark",
+            "name": "Debug run train",
             "type": "debugpy",
             "request": "launch",
             "python": "/home/anmol/code/stateMINT/.venv/bin/python",
             "module": "stateMINT.train",
             "args": [
-                // "-m",
-                // "stateMINT.train",
+                "num_epochs=10",
             ],
             "env": {
                 // "JAX_DISABLE_JIT": "true",

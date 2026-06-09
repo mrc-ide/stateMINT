@@ -35,7 +35,6 @@ max_checkpoints_to_keep: 3
 # General
 predictor: prevalence # prevalence | cases
 seed: 42
-loss_space: natural   # natural | transformed
 loss_method: stateMINT.training.loss.weighted_mse
 use_wandb: false
 output_dir: "train_outputs/${predictor}"

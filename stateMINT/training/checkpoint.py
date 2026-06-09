@@ -71,6 +71,7 @@ class CheckpointSession:
                 "optimizer": nnx.state(self.optimizer),
             },
             metrics={"val/loss": self.best_val_loss},
+            overwrite=True,
         )
         return True
 

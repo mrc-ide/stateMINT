@@ -74,8 +74,8 @@ def main(cfg: DictConfig) -> None:
 
     # ------------------- training loop -----------------------------
     loss_method = get_method(cfg.loss_method)
-    train_step = make_train_step(cfg.predictor, cfg.loss_space, cfg.diff_loss_alpha, loss_method)
-    eval_step = make_eval_step(cfg.predictor, cfg.loss_space, cfg.diff_loss_alpha, loss_method)
+    train_step = make_train_step(cfg.predictor, cfg.diff_loss_alpha, loss_method)
+    eval_step = make_eval_step(cfg.predictor, cfg.diff_loss_alpha, loss_method)
 
     with checkpoint_session(
         checkpoint_dir=cfg.checkpoint_dir,
