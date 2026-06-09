@@ -1,16 +1,17 @@
 import logging
 import hydra
 from omegaconf import DictConfig, OmegaConf
-from .common.dataclasses import Predictor
 import wandb
 import jax
-import jax.numpy as jnp
-from flax import nnx
+import numpy as np
 import duckdb
 from pathlib import Path
 from .data import make_loader, prepare_data
 from .model import Mamba2Regressor
-import optax
+from .training.train import create_optimizer, make_train_step, make_eval_step, compute_metrics
+from hydra.utils import get_method
+from tqdm import tqdm
+from .training.checkpoint import checkpoint_session, init_or_restore_last
 
 
 log = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ def main(cfg: DictConfig) -> None:
     # ------------------- data loading and preprocessing -----------------------------
     log.info("Loading and preprocessing data...")
     Path(cfg.output_dir).mkdir(parents=True, exist_ok=True)
+
     raw_df = duckdb.read_parquet(cfg.data_file).df()
 
     prepared_data = prepare_data(raw_df, cfg)
@@ -65,34 +67,62 @@ def main(cfg: DictConfig) -> None:
         num_workers=cfg.num_workers,
         drop_remainder=False,
     )
-    # --- model + optimizer ---
-    rngs = nnx.Rngs(cfg.seed)
-    model = Mamba2Regressor(
-        input_dim=prepared_data.input_size,
-        d_model=cfg.d_model,
-        n_layers=cfg.n_layers,
-        d_state=cfg.d_state,
-        d_conv=cfg.d_conv,
-        expand=cfg.expand,
-        head_dim=cfg.head_dim,
-        chunk_size=cfg.chunk_size,
-        output_dim=cfg.output_dim,
-        dropout=cfg.dropout,
-        rngs=rngs,
-    )
-    params = nnx.state(model, nnx.Param)
-    total_params = sum(jnp.prod(x.shape) for x in jax.tree_util.tree_leaves(params))
-    log.info(f"Total parameters: {total_params / 1e6:.2f}M")
 
-    # scheduler = optax.warmup_cosine_decay_schedule(
-    #     init_value=0.0,
-    #     peak_value=cfg.learning_rate,
-    #     warmup_steps=int(0.01 * cfg.num_epochs * len(train_loader)),  # warmup for 1% of training
-    #     decay_steps=cfg.num_epochs * len(train_loader),
-    #     end_value=0.1 * cfg.learning_rate,  # decay to 10% of initial LR
-    # )
-    tx = optax.chain(optax.clip_by_global_norm(1.0), optax.adamw(learning_rate=cfg.learning_rate))
-    optimizer = nnx.Optimizer(model, tx, wrt=nnx.Param)
+    # ------------- model + optimizer setup------------------------
+    model = Mamba2Regressor.from_cfg(cfg, prepared_data.input_size)
+    optimizer = create_optimizer(model, cfg.lr)
+
+    # ------------------- training loop -----------------------------
+    loss_method = get_method(cfg.loss_method)
+    train_step = make_train_step(cfg.predictor, cfg.loss_space, cfg.diff_loss_alpha, loss_method)
+    eval_step = make_eval_step(cfg.predictor, cfg.loss_space, cfg.diff_loss_alpha, loss_method)
+
+    with checkpoint_session(
+        checkpoint_dir=cfg.checkpoint_dir,
+        max_checkpoints_to_keep=cfg.max_checkpoints_to_keep,
+        model=model,
+        optimizer=optimizer,
+        restore_checkpoint=cfg.restore_checkpoint,
+    ) as ckpt:
+        patience_n = 0
+        model = ckpt.model
+        optimizer = ckpt.optimizer
+
+        epoch_pbar = tqdm(range(ckpt.start_epoch, cfg.num_epochs), desc="Epoch")
+        for epoch in epoch_pbar:
+            model.train()
+            train_losses = [
+                float(train_step(model, optimizer, batch)) for batch in tqdm(train_loader, desc="Train Batches")
+            ]
+            model.eval()
+            val_losses = [float(eval_step(model, batch)) for batch in tqdm(val_loader, desc="Val Batches")]
+
+            avg_train_loss = float(np.mean(train_losses))
+            avg_val_loss = float(np.mean(val_losses))
+
+            log.info(f"epoch {epoch:04d} | train {avg_train_loss:.6f} | val {avg_val_loss:.6f}")
+
+            if cfg.use_wandb:
+                wandb.log({"train/loss": avg_train_loss, "val/loss": avg_val_loss, "epoch": epoch})
+
+            # Check for improvement & save checkpoint if improved
+            if ckpt.save_if_best(epoch, avg_val_loss):
+                patience_n = 0
+            else:
+                patience_n += 1
+                if patience_n >= cfg.patience:
+                    log.info(f"No improvement for {patience_n} epochs, stopping training.")
+                    break
+
+        # ------------ test evaluation ----------------
+        model, _, _, _ = init_or_restore_last(ckpt.ckptr, ckpt.model, ckpt.optimizer, restore_checkpoint=True)
+        model.eval()
+        metrics = compute_metrics(model, test_loader, cfg.predictor)
+        log.info(f"Test metrics: {metrics}")
+
+        if cfg.use_wandb:
+            wandb.log({f"test/{k}": v for k, v in metrics.items()})
+            wandb.finish()
 
 
 if __name__ == "__main__":

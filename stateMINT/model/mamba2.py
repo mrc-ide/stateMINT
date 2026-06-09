@@ -1,6 +1,7 @@
 import flax.nnx as nnx
 import jax
 import jax.numpy as jnp
+from omegaconf import DictConfig
 
 from mamba2_jax import Mamba2Config, Mamba2Model
 
@@ -50,10 +51,26 @@ class Mamba2Regressor(nnx.Module):
         self.dropout = nnx.Dropout(dropout, rngs=rngs)
         self.output_proj = nnx.Linear(d_model, output_dim, rngs=rngs)  # TODO: maybe more layers here?
 
-        # TODO: maybe make bidirectional?
-        @jax.named_scope("Mamba2Regressor")
-        def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
-            h = self.input_proj(x)  # (B, T, d_model)
-            h = self.mamba2(input_ids=None, inputs_embed=h)["last_hidden_state"]  # (B, T, d_model) - full sequence
-            h = self.dropout(h)
-            return self.output_proj(h)  # (B, T, output_dim)
+    # TODO: maybe make bidirectional?
+    @jax.named_scope("Mamba2Regressor")
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        h = self.input_proj(x)  # (B, T, d_model)
+        h = self.mamba2(input_ids=None, inputs_embed=h)["last_hidden_state"]  # (B, T, d_model) - full sequence
+        h = self.dropout(h)
+        return self.output_proj(h)  # (B, T, output_dim)
+
+    @classmethod
+    def from_cfg(cls, cfg: DictConfig, input_size: int) -> "Mamba2Regressor":
+        return cls(
+            input_dim=input_size,
+            d_model=cfg.d_model,
+            n_layers=cfg.n_layers,
+            d_state=cfg.d_state,
+            d_conv=cfg.d_conv,
+            expand=cfg.expand,
+            head_dim=cfg.head_dim,
+            chunk_size=cfg.chunk_size,
+            output_dim=cfg.output_dim,
+            dropout=cfg.dropout,
+            rngs=nnx.Rngs(cfg.seed),
+        )

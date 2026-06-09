@@ -24,14 +24,19 @@ weight_decay: 1e-2
 lr: 3e-4
 batch_size: 256
 num_epochs: 100
-patience: 16
+patience: 5
+diff_loss_alpha: 0.05
+
+# Checkpointing
+checkpoint_dir: "${output_dir}/checkpoints"
+restore_checkpoint: false
+max_checkpoints_to_keep: 3
 
 # General
 predictor: prevalence # prevalence | cases
-diff_loss_alpha: 0.05
-diff2_loss_beta: 0.0
 seed: 42
 loss_space: natural   # natural | transformed
+loss_method: stateMINT.training.loss.weighted_mse
 use_wandb: false
 output_dir: "train_outputs/${predictor}"
 wandb:
