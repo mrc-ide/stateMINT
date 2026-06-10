@@ -135,13 +135,13 @@ def compute_metrics(
     return {k: float(v) for k, v in metrics.items()}
 
 
-def create_optimizer(model: nnx.Module, learning_rate: float) -> nnx.Optimizer:
-    # scheduler = optax.warmup_cosine_decay_schedule(
-    #     init_value=0.0,
-    #     peak_value=cfg.lr,
-    #     warmup_steps=int(0.01 * cfg.num_epochs * len(train_loader)),  # warmup for 1% of training
-    #     decay_steps=cfg.num_epochs * len(train_loader),
-    #     end_value=0.1 * cfg.lr,  # decay to 10% of initial LR
-    # )
-    tx = optax.chain(optax.clip_by_global_norm(1.0), optax.adamw(learning_rate=learning_rate))
+def create_optimizer(model: nnx.Module, learning_rate: float, total_steps: int) -> nnx.Optimizer:
+    scheduler = optax.warmup_cosine_decay_schedule(
+        init_value=0.0,
+        peak_value=learning_rate,
+        warmup_steps=int(0.03 * total_steps),  # warmup for 3% of training
+        decay_steps=total_steps,
+        end_value=0.1 * learning_rate,  # decay to 10% of initial LR
+    )
+    tx = optax.chain(optax.clip_by_global_norm(1.0), optax.adamw(learning_rate=scheduler))
     return nnx.Optimizer(model, tx, wrt=nnx.Param)

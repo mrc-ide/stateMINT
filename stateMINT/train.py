@@ -12,7 +12,6 @@ from .training.train import create_optimizer, make_train_step, make_eval_step, c
 from hydra.utils import get_method
 from tqdm import tqdm
 from .training.checkpoint import checkpoint_session, init_or_restore_last
-import time
 
 
 log = logging.getLogger(__name__)
@@ -25,7 +24,6 @@ def main(cfg: DictConfig) -> None:
 
     log.info(OmegaConf.to_yaml(cfg))
     log.info("JAX devices: %s", jax.devices())
-    start = time.perf_counter()
 
     if cfg.use_wandb:
         wandb.init(
@@ -73,7 +71,8 @@ def main(cfg: DictConfig) -> None:
 
     # ------------- model + optimizer setup------------------------
     model = Mamba2Regressor.from_cfg(cfg, prepared_data.input_size)
-    optimizer = create_optimizer(model, cfg.lr)
+    total_steps = cfg.num_epochs * len(prepared_data.train_data) // cfg.batch_size
+    optimizer = create_optimizer(model, cfg.lr, total_steps)
 
     # ------------------- training loop -----------------------------
     loss_method = get_method(cfg.loss_method)
@@ -129,7 +128,6 @@ def main(cfg: DictConfig) -> None:
         if cfg.use_wandb:
             wandb.log({f"test/{k}": v for k, v in metrics.items()})
             wandb.finish()
-        log.info(f"Training completed in {time.perf_counter() - start:.2f} seconds.")
 
 
 if __name__ == "__main__":

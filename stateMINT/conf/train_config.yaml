@@ -20,7 +20,6 @@ output_dim: 1
 dropout: 0.025
 
 # Hyperparameters
-weight_decay: 1e-2
 lr: 3e-4
 batch_size: 256
 num_epochs: 100
@@ -28,11 +27,12 @@ patience: 5
 diff_loss_alpha: 0.05
 
 # Checkpointing
-checkpoint_dir: "${output_dir}/checkpoints"
+checkpoint_dir: "${output_dir}/ckpts-${cur_time}"
 restore_checkpoint: false
-max_checkpoints_to_keep: 3
+max_checkpoints_to_keep: 1
 
 # General
+cur_time: ${now:%Y-%m-%dT%H:%M:%S}
 predictor: prevalence # prevalence | cases
 seed: 42
 loss_method: stateMINT.training.loss.weighted_mse
@@ -40,4 +40,4 @@ use_wandb: false
 output_dir: "train_outputs/${predictor}"
 wandb:
   project: "stateMINT"
-  name: "train-${predictor}-1"
+  name: "train-${predictor}-${cur_time}"
