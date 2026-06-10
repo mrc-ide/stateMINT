@@ -2,6 +2,8 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 from .dataclasses import Predictor
+from jaxtyping import Array
+from flax import nnx
 
 
 def transform_targets_np(y: np.ndarray, predictor: Predictor, eps: float = 1e-5) -> np.ndarray:
@@ -26,3 +28,9 @@ def inverse_transform_jax(y: jax.Array, predictor: Predictor) -> jax.Array:
         return jax.nn.sigmoid(y)
     else:
         return jnp.expm1(y)
+
+
+@nnx.jit
+def forward(model: nnx.Module, x: Array) -> Array:
+    """Forward pass through the model."""
+    return model(x).squeeze(-1)  # (B, T, 1) -> (B, T)

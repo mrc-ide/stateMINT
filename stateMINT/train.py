@@ -8,7 +8,8 @@ import duckdb
 from pathlib import Path
 from .data import make_loader, prepare_data
 from .model import Mamba2Regressor
-from .training.train import create_optimizer, make_train_step, make_eval_step, compute_metrics
+from .training.train_step import create_optimizer, make_train_step, make_eval_step
+from .eval.metrics import compute_metrics
 from hydra.utils import get_method
 from tqdm import tqdm
 from .training.checkpoint import checkpoint_session, init_or_restore_last
