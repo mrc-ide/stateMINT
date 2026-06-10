@@ -6,20 +6,28 @@ metric:
   goal: minimize
   name: val/loss
 
+early_terminate:
+  type: hyperband
+  min_iter: 5
+  eta: 3
+
 parameters:
   lr:
     distribution: log_uniform_values
     min: 0.0001
     max: 0.003
-  # dropout:
-  #   distribution: uniform
-  #   min: 0.0
-  #   max: 0.2
+  dropout:
+    distribution: uniform
+    min: 0.0
+    max: 0.2
   batch_size:
     values: [128, 256, 512]
+
   # model-specific
   d_state:
     values: [64, 128]
+  d_model:
+    values: [128, 256]
 
 command:
   - ${env}
@@ -32,5 +40,6 @@ command:
   - "hydra.run.dir=."
   - ${args_no_hyphens}
   - use_wandb=true
+  - predictor=prevalence
   - num_epochs=50
   - patience=3
