@@ -15,7 +15,6 @@ class DataSource(grain.RandomAccessDataSource):
 def make_loader(
     data: list[dict],
     batch_size: int,
-    num_epochs: int,
     shuffle: bool = False,
     seed: int = 42,
     num_workers: int = 0,
@@ -25,7 +24,7 @@ def make_loader(
 
     sampler = grain.IndexSampler(
         num_records=len(data_source),
-        num_epochs=num_epochs,
+        num_epochs=1,
         shard_options=grain.NoSharding(),
         shuffle=shuffle,
         seed=seed,

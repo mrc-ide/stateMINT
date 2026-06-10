@@ -12,7 +12,7 @@ from .training.train import create_optimizer, make_train_step, make_eval_step, c
 from hydra.utils import get_method
 from tqdm import tqdm
 from .training.checkpoint import checkpoint_session, init_or_restore_last
-
+import time
 
 log = logging.getLogger(__name__)
 
@@ -41,19 +41,9 @@ def main(cfg: DictConfig) -> None:
     prepared_data = prepare_data(raw_df, cfg)
 
     # TODO: sort what to do with drop_remainder
-    train_loader = make_loader(
-        data=prepared_data.train_data,
-        batch_size=cfg.batch_size,
-        num_epochs=cfg.num_epochs,
-        seed=cfg.seed,
-        shuffle=True,
-        num_workers=cfg.num_workers,
-        drop_remainder=True,
-    )
     val_loader = make_loader(
         data=prepared_data.val_data,
         batch_size=cfg.batch_size,
-        num_epochs=cfg.num_epochs,
         seed=cfg.seed,
         shuffle=False,
         num_workers=cfg.num_workers,
@@ -62,7 +52,6 @@ def main(cfg: DictConfig) -> None:
     test_loader = make_loader(
         data=prepared_data.test_data,
         batch_size=cfg.batch_size,
-        num_epochs=1,  # only one pass for testing
         seed=cfg.seed,
         shuffle=False,
         num_workers=cfg.num_workers,
@@ -91,7 +80,17 @@ def main(cfg: DictConfig) -> None:
         optimizer = ckpt.optimizer
 
         epoch_pbar = tqdm(range(ckpt.start_epoch, cfg.num_epochs), desc="Epoch")
+        started = time.perf_counter()
         for epoch in epoch_pbar:
+            # remake train loader each epoch to reshuffle with new seed
+            train_loader = make_loader(
+                data=prepared_data.train_data,
+                batch_size=cfg.batch_size,
+                seed=cfg.seed + epoch,
+                shuffle=True,
+                num_workers=cfg.num_workers,
+                drop_remainder=True,
+            )
             model.train()
             train_losses: list[jax.Array] = [train_step(model, optimizer, batch) for batch in train_loader]
 
@@ -102,8 +101,8 @@ def main(cfg: DictConfig) -> None:
             avg_val_loss = float(jnp.mean(jnp.stack(val_losses)))
 
             epoch_pbar.set_postfix(
-                train=f"{avg_train_loss:.4f}",
-                val=f"{avg_val_loss:.4f}",
+                train=f"{avg_train_loss:.6f}",
+                val=f"{avg_val_loss:.6f}",
                 patience=f"{patience_n}/{cfg.patience}",
             )
 
@@ -123,10 +122,13 @@ def main(cfg: DictConfig) -> None:
         model, _, _, _ = init_or_restore_last(ckpt.ckptr, ckpt.model, ckpt.optimizer, restore_checkpoint=True)
         model.eval()
         metrics = compute_metrics(model, test_loader, cfg.predictor)
-        tqdm.write(f"Test metrics: {metrics}")
+        training_loop_time = time.perf_counter() - started
 
+        tqdm.write(f"Test metrics: {metrics}")
+        tqdm.write(f"Training time: {training_loop_time:.2f} seconds")
         if cfg.use_wandb:
             wandb.log({f"test/{k}": v for k, v in metrics.items()})
+            wandb.log({"training_loop_time_seconds": training_loop_time})
             wandb.finish()
 
 
