@@ -3,7 +3,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 import wandb
 import jax
-import numpy as np
+import jax.numpy as jnp
 import duckdb
 from pathlib import Path
 from .data import make_loader, prepare_data
@@ -12,6 +12,7 @@ from .training.train import create_optimizer, make_train_step, make_eval_step, c
 from hydra.utils import get_method
 from tqdm import tqdm
 from .training.checkpoint import checkpoint_session, init_or_restore_last
+import time
 
 
 log = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ def main(cfg: DictConfig) -> None:
 
     log.info(OmegaConf.to_yaml(cfg))
     log.info("JAX devices: %s", jax.devices())
+    start = time.perf_counter()
 
     if cfg.use_wandb:
         wandb.init(
@@ -40,6 +42,7 @@ def main(cfg: DictConfig) -> None:
 
     prepared_data = prepare_data(raw_df, cfg)
 
+    # TODO: sort what to do with drop_remainder
     train_loader = make_loader(
         data=prepared_data.train_data,
         batch_size=cfg.batch_size,
@@ -56,7 +59,7 @@ def main(cfg: DictConfig) -> None:
         seed=cfg.seed,
         shuffle=False,
         num_workers=cfg.num_workers,
-        drop_remainder=False,
+        drop_remainder=True,
     )
     test_loader = make_loader(
         data=prepared_data.test_data,
@@ -65,7 +68,7 @@ def main(cfg: DictConfig) -> None:
         seed=cfg.seed,
         shuffle=False,
         num_workers=cfg.num_workers,
-        drop_remainder=False,
+        drop_remainder=True,
     )
 
     # ------------- model + optimizer setup------------------------
@@ -91,16 +94,19 @@ def main(cfg: DictConfig) -> None:
         epoch_pbar = tqdm(range(ckpt.start_epoch, cfg.num_epochs), desc="Epoch")
         for epoch in epoch_pbar:
             model.train()
-            train_losses = [
-                float(train_step(model, optimizer, batch)) for batch in tqdm(train_loader, desc="Train Batches")
-            ]
+            train_losses: list[jax.Array] = [train_step(model, optimizer, batch) for batch in train_loader]
+
             model.eval()
-            val_losses = [float(eval_step(model, batch)) for batch in tqdm(val_loader, desc="Val Batches")]
+            val_losses: list[jax.Array] = [eval_step(model, batch) for batch in val_loader]
 
-            avg_train_loss = float(np.mean(train_losses))
-            avg_val_loss = float(np.mean(val_losses))
+            avg_train_loss = float(jnp.mean(jnp.stack(train_losses)))
+            avg_val_loss = float(jnp.mean(jnp.stack(val_losses)))
 
-            log.info(f"epoch {epoch:04d} | train {avg_train_loss:.6f} | val {avg_val_loss:.6f}")
+            epoch_pbar.set_postfix(
+                train=f"{avg_train_loss:.4f}",
+                val=f"{avg_val_loss:.4f}",
+                patience=f"{patience_n}/{cfg.patience}",
+            )
 
             if cfg.use_wandb:
                 wandb.log({"train/loss": avg_train_loss, "val/loss": avg_val_loss, "epoch": epoch})
@@ -111,18 +117,19 @@ def main(cfg: DictConfig) -> None:
             else:
                 patience_n += 1
                 if patience_n >= cfg.patience:
-                    log.info(f"No improvement for {patience_n} epochs, stopping training.")
+                    tqdm.write(f"No improvement for {patience_n} epochs, stopping training.")
                     break
 
         # ------------ test evaluation ----------------
         model, _, _, _ = init_or_restore_last(ckpt.ckptr, ckpt.model, ckpt.optimizer, restore_checkpoint=True)
         model.eval()
         metrics = compute_metrics(model, test_loader, cfg.predictor)
-        log.info(f"Test metrics: {metrics}")
+        tqdm.write(f"Test metrics: {metrics}")
 
         if cfg.use_wandb:
             wandb.log({f"test/{k}": v for k, v in metrics.items()})
             wandb.finish()
+        log.info(f"Training completed in {time.perf_counter() - start:.2f} seconds.")
 
 
 if __name__ == "__main__":

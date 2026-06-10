@@ -24,6 +24,7 @@
             "env": {
                 // "JAX_DISABLE_JIT": "true",
                 // "UV_MANAGED_PYTHON": "true"
+                "CUDA_VISIBLE_DEVICES": "1"
             },
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",

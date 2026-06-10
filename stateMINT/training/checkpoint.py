@@ -10,6 +10,9 @@ from etils import epath
 
 log = logging.getLogger(__name__)
 
+# Orbax checkpointing logs verbosely via the absl logger; silence INFO-level noise.
+logging.getLogger("absl").setLevel(logging.WARNING)
+
 
 def init_or_restore_last(
     ckptr: ocp.training.Checkpointer,

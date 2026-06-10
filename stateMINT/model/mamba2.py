@@ -55,7 +55,7 @@ class Mamba2Regressor(nnx.Module):
     @jax.named_scope("Mamba2Regressor")
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         h = self.input_proj(x)  # (B, T, d_model)
-        h = self.mamba2(input_ids=None, inputs_embed=h)["last_hidden_state"]  # (B, T, d_model) - full sequence
+        h = self.mamba2(input_ids=None, inputs_embeds=h)["last_hidden_state"]  # (B, T, d_model) - full sequence
         h = self.dropout(h)
         return self.output_proj(h)  # (B, T, output_dim)
 

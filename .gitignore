@@ -133,3 +133,4 @@ outputs
 inputs
 data/
 ref.py
+train_outputs/

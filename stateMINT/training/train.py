@@ -7,7 +7,7 @@ from functools import partial
 import jax
 from ..common.utils import inverse_transform_jax
 from .loss import weighted_mse
-from ..common.dataclasses import Predictor, LossSpace
+from ..common.dataclasses import Predictor
 import grain.python as grain
 
 

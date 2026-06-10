@@ -1,6 +1,6 @@
 # Data
 data_file: "data/filtered_data_${predictor}.parquet"
-num_workers: 4
+num_workers: 0
 min_prevalence: 0.01
 min_cases: 0.1
 eps_prevalence: 1.0e-5
