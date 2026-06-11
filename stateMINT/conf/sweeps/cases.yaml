@@ -1,5 +1,5 @@
 program: stateMINT/train.py
-project: stateMINT-cases-sweep
+project: stateMINT-sweep
 name: sweep-cases
 method: bayes
 metric:

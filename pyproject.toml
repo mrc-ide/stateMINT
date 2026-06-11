@@ -11,6 +11,7 @@ dependencies = [
     "hydra-core>=1.3.2",
     "jax>=0.10.1",
     "jaxtyping>=0.3.10",
+    "mamba2-jax>=1.0.1",
     "numpy>=2.4.6",
     "optax>=0.2.8",
     "orbax-checkpoint>=0.12.0",

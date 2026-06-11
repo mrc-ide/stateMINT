@@ -660,6 +660,21 @@ wheels = [
 ]
 
 [[package]]
+name = "mamba2-jax"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flax" },
+    { name = "jax" },
+    { name = "jaxlib" },
+    { name = "optax" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1e/12/c70cce802e3f51ae4d1a1d010e73f7733331599fd00077979f035efcd5ce/mamba2_jax-1.0.1.tar.gz", hash = "sha256:7b0e72b967f01e4447f71653850207709d0be712f4001792156d74d5845b1067", size = 24042, upload-time = "2026-02-21T01:13:14.795Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/a4/88e50b5804133707b9d8039becb31337cd0d8f825b97c8ffad3b0337634d/mamba2_jax-1.0.1-py3-none-any.whl", hash = "sha256:1ce7ecd5581aadf706d41796f56896d03c470966a33df6827998e7e1211dcf84", size = 19713, upload-time = "2026-02-21T01:13:13.535Z" },
+]
+
+[[package]]
 name = "markdown-it-py"
 version = "4.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1676,6 +1691,7 @@ dependencies = [
     { name = "hydra-core" },
     { name = "jax" },
     { name = "jaxtyping" },
+    { name = "mamba2-jax" },
     { name = "numpy" },
     { name = "optax" },
     { name = "orbax-checkpoint" },
@@ -1707,6 +1723,7 @@ requires-dist = [
     { name = "jax", specifier = ">=0.10.1" },
     { name = "jax", extras = ["cuda12"], marker = "extra == 'gpu'", specifier = ">=0.10.1" },
     { name = "jaxtyping", specifier = ">=0.3.10" },
+    { name = "mamba2-jax", specifier = ">=1.0.1" },
     { name = "matplotlib", marker = "extra == 'plot'", specifier = ">=3.10.9" },
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "optax", specifier = ">=0.2.8" },
