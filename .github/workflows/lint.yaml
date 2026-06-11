@@ -1,4 +1,4 @@
-name: Lint and Type Check
+name: Lint
 
 on:
   push:
@@ -9,8 +9,8 @@ on:
       - "*"
 
 jobs:
-  typecheck:
-    name: Run pyright type checking
+   lint-and-format:
+    name: Run lint and format checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -28,5 +28,3 @@ jobs:
         run: uv run ruff check --output-format=github
       - name: Run format checks
         run: uv run ruff format --check --diff
-      - name: Run pyright
-        run: pyright

@@ -9,8 +9,8 @@ on:
       - "*"
 
 jobs:
-  typecheck:
-    name: Run pyright type checking
+  test:
+    name: Run tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
