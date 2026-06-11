@@ -9,35 +9,72 @@ import grain.python as grain
 from flax import nnx
 
 
+EPS = 1e-7
+
+
+@jax.jit
+def mse(preds: Array, targets: Array) -> Array:
+    """Mean squared error."""
+    return jnp.mean((preds - targets) ** 2)
+
+
+@jax.jit
+def rmse(preds: Array, targets: Array) -> Array:
+    """Root mean squared error."""
+    return jnp.sqrt(mse(preds, targets))
+
+
+@jax.jit
+def mae(preds: Array, targets: Array) -> Array:
+    """Mean absolute error."""
+    return jnp.mean(jnp.abs(preds - targets))
+
+
+@jax.jit
+def r2(preds: Array, targets: Array) -> Array:
+    """Coefficient of determination."""
+    return 1.0 - jnp.sum((targets - preds) ** 2) / jnp.sum((targets - jnp.mean(targets)) ** 2)
+
+
+@jax.jit
+def smape(preds: Array, targets: Array) -> Array:
+    """Symmetric mean absolute percentage error."""
+    return 100 * jnp.mean(2 * jnp.abs(preds - targets) / (jnp.abs(preds) + jnp.abs(targets) + EPS))
+
+
+@jax.jit
+def bias(preds: Array, targets: Array) -> Array:
+    """Mean prediction bias."""
+    return jnp.mean(preds - targets)
+
+
+@jax.jit
+def log_likelihood(preds: Array, targets: Array) -> Array:
+    """Bernoulli log likelihood for prevalence predictions."""
+    sp = jnp.clip(preds, EPS, 1 - EPS)
+    st = jnp.clip(targets, EPS, 1 - EPS)
+    return jnp.mean(jnp.log(sp) * st + jnp.log(1 - sp) * (1 - st))
+
+
 @partial(jax.jit, static_argnames=["predictor"])
 def _metrics_from_preds_targets(preds: Array, targets: Array, predictor: Predictor) -> dict[str, Array | float]:
     """Compute evaluation metrics on the given predictions and targets."""
     preds = inverse_transform_jax(preds, predictor)
     targets = inverse_transform_jax(targets, predictor)
 
-    eps = 1e-7
-    mse = jnp.mean((preds - targets) ** 2)
-    rmse = jnp.sqrt(mse)
-    mae = jnp.mean(jnp.abs(preds - targets))
-    r2 = 1.0 - jnp.sum((targets - preds) ** 2) / jnp.sum((targets - jnp.mean(targets)) ** 2)
-    smape = 100 * jnp.mean(2 * jnp.abs(preds - targets) / (jnp.abs(preds) + jnp.abs(targets) + eps))
-    bias = jnp.mean(preds - targets)
-
     if predictor == "prevalence":
-        sp = jnp.clip(preds, eps, 1 - eps)
-        st = jnp.clip(targets, eps, 1 - eps)
-        log_likelihood = jnp.mean(jnp.log(sp) * st + jnp.log(1 - sp) * (1 - st))
+        log_likelihood_value = log_likelihood(preds, targets)
     else:
-        log_likelihood = jnp.nan
+        log_likelihood_value = jnp.nan
 
     return {
-        "mse": mse,
-        "rmse": rmse,
-        "mae": mae,
-        "r2": r2,
-        "smape": smape,
-        "bias": bias,
-        "log_likelihood": log_likelihood,
+        "mse": mse(preds, targets),
+        "rmse": rmse(preds, targets),
+        "mae": mae(preds, targets),
+        "r2": r2(preds, targets),
+        "smape": smape(preds, targets),
+        "bias": bias(preds, targets),
+        "log_likelihood": log_likelihood_value,
     }
 
 

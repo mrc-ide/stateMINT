@@ -131,7 +131,7 @@ outputs
 
 # misc
 inputs
-data/
+/data/
 ref.py
 train_outputs/
 wandb/

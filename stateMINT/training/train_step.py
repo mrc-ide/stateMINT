@@ -78,7 +78,7 @@ def create_optimizer(model: nnx.Module, learning_rate: float, total_steps: int) 
         peak_value=learning_rate,
         warmup_steps=int(0.03 * total_steps),  # warmup for 3% of training
         decay_steps=total_steps,
-        end_value=0.1 * learning_rate,  # decay to 10% of initial LR
+        end_value=0.05 * learning_rate,  # decay to 5% of initial LR
     )
     tx = optax.chain(optax.clip_by_global_norm(1.0), optax.adamw(learning_rate=scheduler))
     return nnx.Optimizer(model, tx, wrt=nnx.Param)

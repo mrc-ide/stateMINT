@@ -1,5 +1,5 @@
 program: stateMINT/train.py
-project: stateMINT-prevalence
+project: stateMINT-prevalence-sweep
 name: sweep-prevalence
 method: bayes
 metric:
