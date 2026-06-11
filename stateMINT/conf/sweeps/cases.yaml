@@ -1,0 +1,44 @@
+program: stateMINT/train.py
+project: stateMINT-cases
+name: sweep-cases
+method: bayes
+metric:
+  goal: minimize
+  name: val/loss
+
+# early_terminate:
+#   type: hyperband
+#   min_iter: 10
+#   eta: 3
+
+parameters:
+  lr:
+    distribution: log_uniform_values
+    min: 0.0003
+    max: 0.005
+  dropout:
+    distribution: uniform
+    min: 0.05
+    max: 0.2
+  batch_size:
+    values: [64, 128, 256]
+
+  # model-specific
+  d_state:
+    values: [64, 128]
+  d_model:
+    values: [128, 256]
+
+
+command:
+  - ${env}
+  - python
+  - -m
+  - stateMINT.train
+  - "hydra.output_subdir=null"
+  - "hydra.run.dir=."
+  - ${args_no_hyphens}
+  - target=cases
+  - use_wandb=true
+  - num_epochs=100
+  - patience=20
