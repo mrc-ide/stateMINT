@@ -217,7 +217,7 @@ def _load_split(
         (r.parameter_index, r.simulation_index) for r in split_df[split_df["split"] == "train"].itertuples()
     } & present
     val_ps = {
-        (r.parameter_index, r.simulation_index) for r in split_df[split_df["split"] == "val"].itertuples()
+        (r.parameter_index, r.simulation_index) for r in split_df[split_df["split"] == "validate"].itertuples()
     } & present
     test_ps = {
         (r.parameter_index, r.simulation_index) for r in split_df[split_df["split"] == "test"].itertuples()
@@ -380,7 +380,8 @@ def _build_data(
             {
                 "x": X,  # (T, input_size)
                 "y": Y,  # (T,)
-                "w": W,  # (T,)
+                "w": W,  # (T,),
+                "ps": np.asarray(ps, dtype=np.int32),  # (2,) parameter_index, simulation_index
             }
         )
 

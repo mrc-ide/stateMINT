@@ -102,23 +102,6 @@ def bias(preds: Array, targets: Array) -> Array:
     return jnp.mean(preds - targets)
 
 
-@jax.jit
-def log_likelihood(preds: Array, targets: Array) -> Array:
-    """
-    Bernoulli log likelihood for prevalence predictions.
-
-    Args:
-        preds: Prevalence predictions.
-        targets: Prevalence targets.
-
-    Returns:
-        Mean log likelihood.
-    """
-    sp = jnp.clip(preds, EPS, 1 - EPS)
-    st = jnp.clip(targets, EPS, 1 - EPS)
-    return jnp.mean(jnp.log(sp) * st + jnp.log(1 - sp) * (1 - st))
-
-
 @partial(jax.jit, static_argnames=["predictor"])
 def _metrics_from_preds_targets(preds: Array, targets: Array, predictor: Predictor) -> dict[str, Array | float]:
     """
@@ -137,11 +120,6 @@ def _metrics_from_preds_targets(preds: Array, targets: Array, predictor: Predict
     preds = inverse_transform_jax(preds, predictor)
     targets = inverse_transform_jax(targets, predictor)
 
-    if predictor == "prevalence":
-        log_likelihood_value = log_likelihood(preds, targets)
-    else:
-        log_likelihood_value = jnp.nan
-
     return {
         "mse": mse(preds, targets),
         "rmse": rmse(preds, targets),
@@ -149,7 +127,6 @@ def _metrics_from_preds_targets(preds: Array, targets: Array, predictor: Predict
         "r2": r2(preds, targets),
         "smape": smape(preds, targets),
         "bias": bias(preds, targets),
-        "log_likelihood": log_likelihood_value,
     }
 
 
@@ -171,13 +148,33 @@ def compute_metrics(
     Returns:
         Metric names mapped to floats.
     """
-    all_preds, all_targets = [], []
-    for batch in data_loader:
-        all_preds.append(forward(model, batch["x"]))
-        all_targets.append(batch["y"])
-
-    preds = jnp.concatenate(all_preds)
-    targets = jnp.concatenate(all_targets)
+    preds, targets, _ = get_preds_targets(model, data_loader)
 
     metrics = _metrics_from_preds_targets(preds, targets, predictor)
     return {k: float(v) for k, v in metrics.items()}
+
+
+def get_preds_targets(model: nnx.Module, data_loader: grain.DataLoader) -> tuple[Array, Array, Array]:
+    """
+    Get concatenated predictions and targets from the model on the given data loader.
+
+    Args:
+        model: Model to get predictions from.
+        data_loader: Data loader to get predictions on.
+    Returns:
+        Tuple of ``(predictions, targets, ps)``. Predictions and targets have
+        shape ``(N, T)`` and ``ps`` has shape ``(N, 2)``, where ``N`` is the
+        total number of samples in the data loader and ``T`` is the number of
+        timesteps.
+    """
+    all_preds, all_targets, all_ps = [], [], []
+    for batch in data_loader:
+        all_preds.append(forward(model, batch["x"]))
+        all_targets.append(batch["y"])
+        all_ps.append(batch["ps"])
+
+    preds = jnp.concatenate(all_preds)
+    targets = jnp.concatenate(all_targets)
+    ps = jnp.concatenate(all_ps)
+
+    return preds, targets, ps

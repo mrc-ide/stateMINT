@@ -1,0 +1,33 @@
+defaults:
+  - _self_
+  - target: prevalence
+
+# Data
+data_file: "data/filtered_data_${predictor}.parquet"
+split_file: "data/split_${predictor}.json"
+num_workers: 0
+use_cyclical_time: true
+use_existing_split: true
+eps_prevalence: 1.0e-5
+window_size: 14
+
+# Model
+n_layers: 4
+d_conv: 4
+expand: 2
+head_dim: 64
+chunk_size: 256
+output_dim: 1
+d_model: 128
+d_state: 64
+dropout: 0.15
+
+# Checkpointing
+checkpoint_dir: "${output_dir}/ckpts-2026-06-11T13:53:07"
+restore_checkpoint: true
+
+# General
+seed: 42
+ylabel: "Prevalence"
+output_dir: "train_outputs/${predictor}"
+plot_file: "${output_dir}/preds-vs-targets.pdf"

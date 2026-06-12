@@ -17,10 +17,10 @@
             "type": "debugpy",
             "request": "launch",
             "python": "/home/anmol/code/stateMINT/.venv/bin/python",
-            "module": "stateMINT.train",
-            "args": [
-                "num_epochs=10",
-            ],
+            "module": "stateMINT.viz",
+            // "args": [
+            //     "num_epochs=10",
+            // ],
             "env": {
                 // "JAX_DISABLE_JIT": "true",
                 // "UV_MANAGED_PYTHON": "true"

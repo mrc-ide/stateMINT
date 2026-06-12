@@ -4,6 +4,7 @@ import jax.numpy as jnp
 from omegaconf import DictConfig
 
 from mamba2_jax import Mamba2Config, Mamba2Model
+from wandb.util import np
 
 
 class Mamba2Regressor(nnx.Module):
@@ -112,3 +113,17 @@ class Mamba2Regressor(nnx.Module):
             dropout=cfg.dropout,
             rngs=nnx.Rngs(cfg.seed),
         )
+
+
+def get_total_params(model: nnx.Module) -> int:
+    """
+    Get the total number of parameters in the model.
+
+    Args:
+        model: Flax module.
+
+    Returns:
+        Total parameter count.
+    """
+    params = nnx.state(model, nnx.Param)
+    return sum(np.prod(x.shape) for x in jax.tree_util.tree_leaves(params))

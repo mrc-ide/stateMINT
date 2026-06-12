@@ -1,19 +1,23 @@
 import logging
+import time
+from pathlib import Path
+
+import duckdb
 import hydra
-from omegaconf import DictConfig, OmegaConf
-import wandb
 import jax
 import jax.numpy as jnp
-import duckdb
-from pathlib import Path
-from .data import make_loader, prepare_data
-from .model import Mamba2Regressor
-from .training.train_step import create_optimizer, make_train_step, make_eval_step
-from .eval.metrics import compute_metrics
 from hydra.utils import get_method
+from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
+
+import wandb
+from stateMINT.model.mamba2 import get_total_params
+
+from .data import make_loader, prepare_data
+from .eval.metrics import compute_metrics
+from .model import Mamba2Regressor
 from .training.checkpoint import checkpoint_session, init_or_restore_last
-import time
+from .training.train_step import create_optimizer, make_eval_step, make_train_step
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +72,10 @@ def main(cfg: DictConfig) -> None:
 
     # ------------- model + optimizer setup------------------------
     model = Mamba2Regressor.from_cfg(cfg, prepared_data.input_size)
+    log.info(f"Total parameters: {get_total_params(model) / 1e6:.2f}M")
+
     total_steps = cfg.num_epochs * len(prepared_data.train_data) // cfg.batch_size
+    log.info(f"Total training steps: {total_steps}")
     optimizer = create_optimizer(model, cfg.lr, total_steps)
 
     # ------------------- training loop -----------------------------
