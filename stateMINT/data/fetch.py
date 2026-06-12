@@ -17,13 +17,23 @@ def save_fetched_filtered_data(
     predictor: Literal["prevalence", "cases"] = "prevalence",
     output_folder: str = ".",
 ) -> None:
-    """Fetch data from DuckDB with filtering and aggregation.
+    """
+    Fetch data from DuckDB with filtering and aggregation.
 
-    The function fetches data from the specified DuckDB database and table. It applies the following to data:
-    - filters simulations based on `param_limit` and `sim_limit`
-    - filters out first 6 years. (epidemiological burn-in period). only last 6 years are kept (2190-4379 days)
-    - aggregates into windows of `window_size` days (default 14) by parameter/simulation, computing either prevalence or cases as the target.
+    This limits parameter/simulation subsets when requested, drops the six-year
+    burn-in period, aggregates daily rows into windows, and writes parquet output.
 
+    Args:
+        db_path: DuckDB database path.
+        table_name: Source table name.
+        param_limit: Optional parameter index limit.
+        sim_limit: Optional simulations per parameter limit.
+        window_size: Aggregation window in days.
+        predictor: Target to compute.
+        output_folder: Output directory.
+
+    Returns:
+        None.
     """
 
     if predictor not in ["prevalence", "cases"]:

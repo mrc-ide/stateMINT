@@ -33,10 +33,25 @@ INTERVENTION_DAY = 9 * 365
 
 class StandardScaler:
     def __init__(self):
+        """
+        Initialize an unfitted scaler.
+
+        Returns:
+            None.
+        """
         self.mean_: np.ndarray | None = None
         self.scale_: np.ndarray | None = None
 
     def fit(self, X: np.ndarray) -> "StandardScaler":
+        """
+        Fit feature means and scales.
+
+        Args:
+            X: Feature matrix.
+
+        Returns:
+            Fitted scaler.
+        """
         self.mean_ = np.mean(X, axis=0)
         # To avoid division by zero, set scale to 1.0 for any feature with zero variance
         scale = np.std(X, axis=0)
@@ -45,14 +60,41 @@ class StandardScaler:
         return self
 
     def transform(self, X: np.ndarray) -> np.ndarray:
+        """
+        Standardize features.
+
+        Args:
+            X: Feature matrix.
+
+        Returns:
+            Standardized features.
+        """
         if self.mean_ is None or self.scale_ is None:
             raise ValueError("StandardScaler instance is not fitted yet.")
         return (X - self.mean_) / self.scale_
 
     def fit_transform(self, X: np.ndarray) -> np.ndarray:
+        """
+        Fit and standardize features.
+
+        Args:
+            X: Feature matrix.
+
+        Returns:
+            Standardized features.
+        """
         return self.fit(X).transform(X)
 
     def inverse_transform(self, X: np.ndarray) -> np.ndarray:
+        """
+        Restore standardized features.
+
+        Args:
+            X: Standardized feature matrix.
+
+        Returns:
+            Features in the original scale.
+        """
         if self.mean_ is None or self.scale_ is None:
             raise ValueError("StandardScaler instance is not fitted yet.")
         return X * self.scale_ + self.mean_
@@ -71,6 +113,19 @@ class PreparedData:
 
 
 def prepare_data(df: pd.DataFrame, cfg: DictConfig):
+    """
+    Split and transform raw simulation data.
+
+    This filters low-signal parameter-simulation pairs, creates or loads the split,
+    fits static covariate scaling on train data, and builds sequence records.
+
+    Args:
+        df: Raw simulation dataframe.
+        cfg: Data preparation config.
+
+    Returns:
+        Prepared train, validation, and test data.
+    """
     random.seed(cfg.seed)
 
     # Filter by threshold
@@ -120,7 +175,17 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
 
 
 def _filter_by_threshold(df: pd.DataFrame, target_col: str, threshold: float) -> pd.DataFrame:
-    """Filter parameter-simulation pairs where the mean target value is below the threshold."""
+    """
+    Filter parameter-simulation pairs where the mean target value is below the threshold.
+
+    Args:
+        df: Input dataframe.
+        target_col: Target column name.
+        threshold: Minimum mean target value.
+
+    Returns:
+        Filtered dataframe.
+    """
 
     group_means = df.groupby(["parameter_index", "simulation_index"])[target_col].mean()
     valid = set(map(tuple, group_means[group_means >= threshold].index.tolist()))
@@ -136,6 +201,16 @@ def _filter_by_threshold(df: pd.DataFrame, target_col: str, threshold: float) ->
 def _load_split(
     split_file: str, df: pd.DataFrame
 ) -> tuple[set[tuple[int, int]], set[tuple[int, int]], set[tuple[int, int]]]:
+    """
+    Load an existing train/val/test split.
+
+    Args:
+        split_file: Split CSV path.
+        df: Filtered dataframe.
+
+    Returns:
+        Train, validation, and test parameter-simulation sets.
+    """
     split_df = pd.read_csv(split_file)
     present = set(df[["parameter_index", "simulation_index"]].itertuples(index=False, name=None))
     train_ps = {
@@ -153,6 +228,16 @@ def _load_split(
 def _create_split(
     df: pd.DataFrame, seed: int
 ) -> tuple[set[tuple[int, int]], set[tuple[int, int]], set[tuple[int, int]]]:
+    """
+    Create a train/val/test split by parameter.
+
+    Args:
+        df: Filtered dataframe.
+        seed: Shuffle seed.
+
+    Returns:
+        Train, validation, and test parameter-simulation sets.
+    """
     random.seed(seed)  # TODO: check seeds set correctly!!
     params = list(df["parameter_index"].unique())
     random.shuffle(params)
@@ -171,6 +256,19 @@ def _create_split(
 
 
 def _save_split(path, train_ps, val_ps, test_ps, df):
+    """
+    Save parameter-simulation split assignments.
+
+    Args:
+        path: Output CSV path.
+        train_ps: Training pairs.
+        val_ps: Validation pairs.
+        test_ps: Test pairs.
+        df: Source dataframe.
+
+    Returns:
+        None.
+    """
     rows = []
     ps_to_global = {
         (r.parameter_index, r.simulation_index): r.global_index
@@ -187,6 +285,17 @@ def _save_split(path, train_ps, val_ps, test_ps, df):
 
 
 def _fit_scaler(df: pd.DataFrame, train_ps: set[tuple[int, int]], output_dir: str) -> StandardScaler:
+    """
+    Fit and save the static covariate scaler.
+
+    Args:
+        df: Filtered dataframe.
+        train_ps: Training pairs.
+        output_dir: Directory for scaler output.
+
+    Returns:
+        Fitted scaler.
+    """
     train_mask = df["_ps"].isin(train_ps)
     train_static = (
         df.loc[train_mask, ["_ps"] + STATIC_COVARS]
@@ -211,6 +320,21 @@ def _build_data(
     scaler: StandardScaler,
     cfg: DictConfig,
 ) -> list[dict[str, np.ndarray]]:
+    """
+    Build model-ready sequence records.
+
+    Each record contains time features, scaled static covariates, transformed targets,
+    and optional exposure weights for case prediction.
+
+    Args:
+        df: Filtered dataframe.
+        param_sims: Pairs to include.
+        scaler: Static covariate scaler.
+        cfg: Data preparation config.
+
+    Returns:
+        List of sequence records.
+    """
     groups = df.groupby(["parameter_index", "simulation_index"])
     data = []
 

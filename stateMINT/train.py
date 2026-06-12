@@ -20,6 +20,13 @@ log = logging.getLogger(__name__)
 
 @hydra.main(version_base=None, config_path="conf", config_name="train_config")
 def main(cfg: DictConfig) -> None:
+    """
+    Train and evaluate the model.
+
+    Args:
+        cfg: Hydra training config.
+
+    """
     if cfg.predictor not in ("prevalence", "cases"):
         raise ValueError(f"Unknown predictor: {cfg.predictor}")
 

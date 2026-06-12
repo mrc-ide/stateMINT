@@ -34,6 +34,25 @@ class Mamba2Regressor(nnx.Module):
         *,
         rngs: nnx.Rngs,
     ):
+        """
+        Initialize the Mamba2 regressor.
+
+        Args:
+            input_dim: Input feature size.
+            d_model: Hidden size.
+            n_layers: Number of Mamba2 layers.
+            d_state: State size.
+            d_conv: Convolution kernel size.
+            expand: Expansion factor.
+            head_dim: Head dimension.
+            chunk_size: Mamba chunk size.
+            output_dim: Output feature size.
+            dropout: Dropout rate.
+            rngs: Flax random streams.
+
+        Returns:
+            None.
+        """
         assert (d_model * expand) % head_dim == 0, "d_model * expand must be divisible by head_dim"
 
         self.input_proj = nnx.Linear(input_dim, d_model, rngs=rngs)
@@ -54,6 +73,15 @@ class Mamba2Regressor(nnx.Module):
     # TODO: maybe make bidirectional?
     @jax.named_scope("Mamba2Regressor")
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        """
+        Predict one output per timestep.
+
+        Args:
+            x: Input batch with shape (B, T, input_dim).
+
+        Returns:
+            Predictions with shape (B, T, output_dim).
+        """
         h = self.input_proj(x)  # (B, T, d_model)
         h = self.mamba2(input_ids=None, inputs_embeds=h)["last_hidden_state"]  # (B, T, d_model) - full sequence
         h = self.dropout(h)
@@ -61,6 +89,16 @@ class Mamba2Regressor(nnx.Module):
 
     @classmethod
     def from_cfg(cls, cfg: DictConfig, input_size: int) -> "Mamba2Regressor":
+        """
+        Build a regressor from config.
+
+        Args:
+            cfg: Model config.
+            input_size: Input feature size.
+
+        Returns:
+            Configured regressor.
+        """
         return cls(
             input_dim=input_size,
             d_model=cfg.d_model,

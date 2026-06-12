@@ -20,20 +20,17 @@ def init_or_restore_last(
     optimizer: nnx.Optimizer,
     restore_checkpoint: bool = False,
 ) -> tuple[nnx.Module, nnx.Optimizer, int, float]:
-    """Initialize or restore model and optimizer from checkpoint.
+    """
+    Initialize or restore model and optimizer from checkpoint.
 
     Args:
-        ckptr: An Orbax Checkpointer instance.
-        model: The model to initialize or restore.
-        optimizer: The optimizer to initialize or restore.
-        restore_checkpoint: Whether to attempt restoring from checkpoint. If False, will always initialize from scratch
+        ckptr: Orbax checkpointer.
+        model: Model to restore.
+        optimizer: Optimizer to restore.
+        restore_checkpoint: Whether to restore from checkpoint.
 
     Returns:
-    A tuple of (model, optimizer, start_epoch, val_loss),
-    where start_epoch is the epoch to start training from (0 if initializing from scratch, or the checkpoint epoch + 1 if restoring),
-    and val_loss is the validation loss at the checkpoint (float('inf') if initializing from
-    scratch, or the actual val loss from checkpoint metadata if restoring).
-
+        Model, optimizer, start epoch, and validation loss from the checkpoint.
     """
     if not restore_checkpoint or not ckptr.latest:
         log.info("Initializing model and optimizer from scratch.")
@@ -63,6 +60,16 @@ class CheckpointSession:
     best_val_loss: float
 
     def save_if_best(self, epoch: int, val_loss: float) -> bool:
+        """
+        Save a checkpoint when validation loss improves.
+
+        Args:
+            epoch: Current epoch.
+            val_loss: Current validation loss.
+
+        Returns:
+            Whether a checkpoint was saved.
+        """
         if val_loss >= self.best_val_loss:
             return False
 
@@ -87,6 +94,19 @@ def checkpoint_session(
     optimizer: nnx.Optimizer,
     restore_checkpoint: bool = False,
 ) -> Iterator[CheckpointSession]:
+    """
+    Open a checkpointing session.
+
+    Args:
+        checkpoint_dir: Checkpoint directory.
+        max_checkpoints_to_keep: Number of checkpoints to keep.
+        model: Model to checkpoint.
+        optimizer: Optimizer to checkpoint.
+        restore_checkpoint: Whether to restore existing state.
+
+    Returns:
+        Checkpoint session iterator.
+    """
     ckpt_dir = epath.Path(checkpoint_dir).resolve()
     with ocp.training.Checkpointer(
         ckpt_dir,
