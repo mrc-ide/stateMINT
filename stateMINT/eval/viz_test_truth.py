@@ -65,6 +65,21 @@ def plot_preds_targets(
     parameter_indices = np.unique(ps_np[:, 0])
     years = preds_np.shape[1] * window_size / 365
     x_np = np.linspace(0.0, years, preds_np.shape[1])
+    if predictor == "prevalence":
+        y_limits = (0.0, 1.0)
+    else:
+        y_values = np.concatenate((targets_np.ravel(), preds_np.ravel()))
+        y_values = y_values[np.isfinite(y_values)]
+        if y_values.size == 0:
+            y_limits = None
+        else:
+            y_min = float(y_values.min())
+            y_max = float(y_values.max())
+            if y_min == y_max:
+                pad = max(abs(y_min) * 0.05, 1.0)
+            else:
+                pad = (y_max - y_min) * 0.05
+            y_limits = (y_min - pad, y_max + pad)
 
     page_starts = range(0, len(parameter_indices), parameter_sets_per_page)
 
@@ -96,6 +111,8 @@ def plot_preds_targets(
                     ax.plot(x_np, targets_np[sample_idx], color="black", linewidth=2.2, label=target_label)
                     ax.plot(x_np, preds_np[sample_idx], color="blue", linewidth=2.2, label=model_label)
                     ax.axvline(1.0, color="0.5", linestyle="--", linewidth=1.5, alpha=0.75)
+                    if y_limits is not None:
+                        ax.set_ylim(*y_limits)
                     ax.grid(True, alpha=0.3)
                     ax.set_title(
                         f"Param {int(parameter_index)} | Sim {int(sim_index)}",

@@ -22,6 +22,10 @@ from .training.train_step import create_optimizer, make_eval_step, make_train_st
 log = logging.getLogger(__name__)
 
 
+# Example command to run training:
+# uv run -m stateMINT.train use_wandb=true target=cases
+
+
 @hydra.main(version_base=None, config_path="conf", config_name="train_config")
 def main(cfg: DictConfig) -> None:
     """
@@ -124,7 +128,9 @@ def main(cfg: DictConfig) -> None:
             if cfg.use_wandb:
                 wandb.log({"train/loss": avg_train_loss, "val/loss": avg_val_loss, "epoch": epoch})
 
-            # Check for improvement & save checkpoint if improved
+            # Check for improvement & save checkpoint if improved except for the first few epochs to allow some training progress before early stopping kicks in
+            if epoch < cfg.min_epochs:
+                continue
             if ckpt.save_if_best(epoch, avg_val_loss):
                 patience_n = 0
             else:

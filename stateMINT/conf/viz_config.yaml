@@ -23,7 +23,7 @@ d_state: 64
 dropout: 0.15
 
 # Checkpointing
-checkpoint_dir: "${output_dir}/ckpts-2026-06-11T13:53:07"
+checkpoint_dir: "${output_dir}/ckpts-2026-06-11T21:25:47"
 restore_checkpoint: true
 
 # General
