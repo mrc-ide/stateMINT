@@ -80,7 +80,7 @@ def main(cfg: DictConfig) -> None:
 
     total_steps = cfg.num_epochs * len(prepared_data.train_data) // cfg.batch_size
     log.info(f"Total training steps: {total_steps}")
-    optimizer = create_optimizer(model, cfg.lr, total_steps)
+    optimizer = create_optimizer(model, cfg.lr, total_steps, cfg.weight_decay)
 
     # ------------------- training loop -----------------------------
     loss_method = get_method(cfg.loss_method)

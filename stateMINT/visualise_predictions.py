@@ -10,15 +10,13 @@ from orbax.checkpoint import v1 as ocp
 from stateMINT.training.checkpoint import init_or_restore_last
 from stateMINT.training.train_step import create_optimizer
 from stateMINT.eval.metrics import get_preds_targets
-from stateMINT.eval.viz_test_truth import plot_preds_targets
+from stateMINT.eval.viz_preds_truth import plot_preds_targets
 from etils import epath
 
 
 log = logging.getLogger(__name__)
 
 
-# need to load checkpoint, get test split, run to get predictions and targets
-# then compare and produce visualisations
 @hydra.main(version_base=None, config_path="conf", config_name="viz_config")
 def main(cfg: DictConfig) -> None:
     """
@@ -31,6 +29,7 @@ def main(cfg: DictConfig) -> None:
     raw_df = duckdb.read_parquet(cfg.data_file).df()
 
     prepared_data = prepare_data(raw_df, cfg)
+    # TODO: do we need to make loader or just pass test_data straight.
     test_loader = make_loader(
         data=prepared_data.test_data,
         batch_size=cfg.batch_size,

@@ -68,6 +68,7 @@ def make_train_step(
     Returns:
         Training step function.
     """
+
     @nnx.jit
     def train_step(model: nnx.Module, optimizer: nnx.Optimizer, batch: dict) -> Array:
         """
@@ -81,6 +82,7 @@ def make_train_step(
         Returns:
             Scalar loss.
         """
+
         def loss_fn(model: nnx.Module) -> Array:
             """
             Compute differentiable loss.
@@ -116,6 +118,7 @@ def make_eval_step(
     Returns:
         Evaluation step function.
     """
+
     @nnx.jit
     def eval_step(model: nnx.Module, batch: dict) -> Array:
         """
@@ -139,7 +142,9 @@ def make_eval_step(
     return eval_step
 
 
-def create_optimizer(model: nnx.Module, learning_rate: float, total_steps: int) -> nnx.Optimizer:
+def create_optimizer(
+    model: nnx.Module, learning_rate: float, total_steps: int, weight_decay: float = 1e-4
+) -> nnx.Optimizer:
     """
     Create the training optimizer.
 
@@ -156,7 +161,7 @@ def create_optimizer(model: nnx.Module, learning_rate: float, total_steps: int) 
         peak_value=learning_rate,
         warmup_steps=int(0.03 * total_steps),  # warmup for 3% of training
         decay_steps=total_steps,
-        end_value=0.05 * learning_rate,  # decay to 5% of initial LR
+        end_value=0.01 * learning_rate,  # decay to 1% of initial LR
     )
-    tx = optax.chain(optax.clip_by_global_norm(1.0), optax.adamw(learning_rate=scheduler))
+    tx = optax.chain(optax.clip_by_global_norm(1.0), optax.adamw(learning_rate=scheduler, weight_decay=weight_decay))
     return nnx.Optimizer(model, tx, wrt=nnx.Param)

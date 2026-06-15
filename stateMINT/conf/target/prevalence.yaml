@@ -4,13 +4,14 @@ predictor: prevalence
 
 # Data
 min_prevalence: 0.01
+ylabel: "Prevalence"
 
 # Model
 d_model: 256
-d_state: 64
-dropout: 0.15
+d_state: 128
+dropout: 0.3
 
 # Hyperparameters
-lr: 1e-3
+lr: 3e-4
 batch_size: 128
 

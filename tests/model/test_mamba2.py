@@ -1,14 +1,11 @@
 import time
-from pathlib import Path
 
-import jax
 import jax.numpy as jnp
 import pytest
 from flax import nnx
 from omegaconf import OmegaConf
 
 from stateMINT.common.utils import forward
-from stateMINT.data.preprocessing import STATIC_COVARS
 from stateMINT.model import Mamba2Regressor
 
 

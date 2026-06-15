@@ -2,14 +2,40 @@ from pathlib import Path
 
 import numpy as np
 from jaxtyping import Array
+
 from stateMINT.common.dataclasses import Predictor
 from stateMINT.common.utils import inverse_transform_np
 
 
+def _compute_y_limits(*arrays: np.ndarray) -> tuple[float, float] | None:
+    """Return padded (min, max) y-limits over finite values, or None if there are none."""
+    values = np.concatenate([a.ravel() for a in arrays])
+    values = values[np.isfinite(values)]
+    if values.size == 0:
+        return None
+    y_min, y_max = float(values.min()), float(values.max())
+    pad = (y_max - y_min) * 0.05 if y_min != y_max else max(abs(y_min) * 0.05, 1.0)
+    return (y_min - pad, y_max + pad)
+
+
+def _validate_plot_inputs(
+    preds: Array | np.ndarray,
+    targets: Array | np.ndarray,
+    ps: Array | np.ndarray,
+) -> None:
+    """Validate inputs for plotting predictions vs targets."""
+    if preds.shape != targets.shape:
+        raise ValueError(f"preds and targets must have matching shapes, got {preds.shape} and {targets.shape}")
+    if preds.ndim != 2:
+        raise ValueError(f"preds and targets must have shape (N, T), got {preds.shape}")
+    if ps.shape != (preds.shape[0], 2):
+        raise ValueError(f"ps must have shape ({preds.shape[0]}, 2), got {ps.shape}")
+
+
 def plot_preds_targets(
-    preds: Array,
-    targets: Array,
-    ps: Array,
+    preds: Array | np.ndarray,
+    targets: Array | np.ndarray,
+    ps: Array | np.ndarray,
     plot_file: str | Path,
     *,
     window_size: int = 14,
@@ -35,21 +61,19 @@ def plot_preds_targets(
         predictor: Target transform to invert before plotting.
         sims_per_parameter: Number of simulations expected per parameter set.
         parameter_sets_per_page: Number of parameter sets to show on one PDF page.
+
+    Returns:
+        None. Saves plots to the specified PDF file.
     """
     import matplotlib.pyplot as plt
     from matplotlib.backends.backend_pdf import PdfPages
     from tqdm import tqdm
 
+    _validate_plot_inputs(preds, targets, ps)
+
     preds_np = np.asarray(preds)
     targets_np = np.asarray(targets)
     ps_np = np.asarray(ps)
-
-    if preds_np.shape != targets_np.shape:
-        raise ValueError(f"preds and targets must have matching shapes, got {preds_np.shape} and {targets_np.shape}")
-    if preds_np.ndim != 2:
-        raise ValueError(f"preds and targets must have shape (N, T), got {preds_np.shape}")
-    if ps_np.shape != (preds_np.shape[0], 2):
-        raise ValueError(f"ps must have shape ({preds_np.shape[0]}, 2), got {ps_np.shape}")
 
     preds_np = inverse_transform_np(preds_np, predictor)
     targets_np = inverse_transform_np(targets_np, predictor)
@@ -68,18 +92,7 @@ def plot_preds_targets(
     if predictor == "prevalence":
         y_limits = (0.0, 1.0)
     else:
-        y_values = np.concatenate((targets_np.ravel(), preds_np.ravel()))
-        y_values = y_values[np.isfinite(y_values)]
-        if y_values.size == 0:
-            y_limits = None
-        else:
-            y_min = float(y_values.min())
-            y_max = float(y_values.max())
-            if y_min == y_max:
-                pad = max(abs(y_min) * 0.05, 1.0)
-            else:
-                pad = (y_max - y_min) * 0.05
-            y_limits = (y_min - pad, y_max + pad)
+        y_limits = _compute_y_limits(targets_np, preds_np)
 
     page_starts = range(0, len(parameter_indices), parameter_sets_per_page)
 
@@ -110,7 +123,7 @@ def plot_preds_targets(
 
                     ax.plot(x_np, targets_np[sample_idx], color="black", linewidth=2.2, label=target_label)
                     ax.plot(x_np, preds_np[sample_idx], color="blue", linewidth=2.2, label=model_label)
-                    ax.axvline(1.0, color="0.5", linestyle="--", linewidth=1.5, alpha=0.75)
+                    ax.axvline(years - 3 if years > 3 else 0, color="0.5", linestyle="--", linewidth=1.5, alpha=0.75)
                     if y_limits is not None:
                         ax.set_ylim(*y_limits)
                     ax.grid(True, alpha=0.3)
@@ -123,9 +136,6 @@ def plot_preds_targets(
                         ax.set_ylabel(f"Param set {int(parameter_index)}\n{ylabel}", fontweight="bold")
                     if row == len(page_params) - 1:
                         ax.set_xlabel("Years", fontweight="bold")
-
-                for col in range(len(sim_indices), sims_per_parameter):
-                    axes[row, col].axis("off")
 
             handles, labels = axes[0, 0].get_legend_handles_labels()
             fig.legend(handles, labels, loc="upper right", frameon=True)
