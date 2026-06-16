@@ -30,6 +30,9 @@ STATIC_COVARS = [
 AFTER9_COVARS = ["dn0_future", "itn_future", "irs_future", "lsm", "routine"]
 INTERVENTION_DAY = 9 * 365
 
+# Precomputed column indices for AFTER9_COVARS within STATIC_COVARS.
+_AFTER9_COL_INDICES: list[int] = [STATIC_COVARS.index(c) for c in AFTER9_COVARS if c in STATIC_COVARS]
+
 
 class StandardScaler:
     def __init__(self):
@@ -314,6 +317,104 @@ def _fit_scaler(df: pd.DataFrame, train_ps: set[tuple[int, int]], output_dir: st
     return scaler
 
 
+def _build_static_features(sub: pd.DataFrame, abs_t: np.ndarray, scaler: StandardScaler) -> np.ndarray:
+    """
+    Build scaled static covariate matrix with pre-intervention masking.
+
+    AFTER9_COVARS are zeroed out for timesteps before INTERVENTION_DAY because those
+    intervention parameters aren't active yet.
+
+    Args:
+        sub: Rows for one parameter-simulation pair, sorted by timestep.
+        abs_t: Absolute timestep values (float32, shape T).
+        scaler: Fitted static covariate scaler.
+
+    Returns:
+        Scaled static feature matrix of shape (T, len(STATIC_COVARS)).
+    """
+    T = len(abs_t)
+    base_static = sub.iloc[0][STATIC_COVARS].values.astype(np.float32)
+    raw_matrix = np.tile(base_static, (T, 1))
+    pre_mask = abs_t < INTERVENTION_DAY
+    if pre_mask.any():
+        raw_matrix[np.ix_(pre_mask, _AFTER9_COL_INDICES)] = 0.0
+    return scaler.transform(raw_matrix)
+
+
+def _build_intervention_features(abs_t: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Compute post-intervention flag and time-since-intervention in years.
+
+    Args:
+        abs_t: Absolute timestep values (float32, shape T).
+
+    Returns:
+        post9: Binary flag, 1 on/after INTERVENTION_DAY (shape T).
+        t_since9_yrs: Years elapsed since INTERVENTION_DAY, 0 before (shape T).
+    """
+    post9 = (abs_t >= INTERVENTION_DAY).astype(np.float32)
+    t_since9_yrs = (np.maximum(0.0, abs_t - INTERVENTION_DAY) / 365.0).astype(np.float32)
+    return post9, t_since9_yrs
+
+
+def _build_time_features(abs_t: np.ndarray, t: np.ndarray, use_cyclical: bool) -> np.ndarray:
+    """
+    Build time feature columns — either cyclical (sin/cos of day-of-year) or
+    min-max normalised absolute time.
+
+    Args:
+        abs_t: Absolute timestep values (float32, shape T).
+        t: Relative timestep values (float32, shape T).
+        use_cyclical: Whether to use cyclical encoding.
+
+    Returns:
+        Time feature matrix of shape (T, 2) for cyclical or (T, 1) for linear.
+    """
+    if use_cyclical:
+        doy = abs_t % 365.0
+        sin_t = np.sin(2 * math.pi * doy / 365.0).astype(np.float32)
+        cos_t = np.cos(2 * math.pi * doy / 365.0).astype(np.float32)
+        return np.stack([sin_t, cos_t], axis=1)
+    else:
+        t_min, t_max = t.min(), t.max()
+        t_norm = ((t - t_min) / (t_max - t_min) if t_max > t_min else t).astype(np.float32)
+        return t_norm[:, None]
+
+
+def _build_targets(sub: pd.DataFrame, predictor: str, eps_prevalence: float) -> np.ndarray:
+    """
+    Extract and transform target values.
+
+    Args:
+        sub: Rows for one parameter-simulation pair.
+        predictor: Target column name.
+        eps_prevalence: Small offset for prevalence log-transform.
+
+    Returns:
+        Transformed target array of shape (T,).
+    """
+    Y_raw = sub[predictor].values.astype(np.float32)
+    return transform_targets_np(Y_raw, predictor, eps_prevalence)
+
+
+def _build_weights(sub: pd.DataFrame, predictor: str) -> np.ndarray:
+    """
+    Build per-timestep loss weights.
+
+    For case prediction, weights are exposure counts. For prevalence, all weights are 1.
+
+    Args:
+        sub: Rows for one parameter-simulation pair.
+        predictor: Target column name.
+
+    Returns:
+        Weight array of shape (T,).
+    """
+    if predictor == "cases":
+        return sub["exposure_pd"].values.astype(np.float32)
+    return np.ones(len(sub), dtype=np.float32)
+
+
 def _build_data(
     df: pd.DataFrame,
     param_sims: set[tuple[int, int]],
@@ -333,7 +434,7 @@ def _build_data(
         cfg: Data preparation config.
 
     Returns:
-        List of sequence records.
+        List of sequence records with keys x (T, input_size), y (T,), w (T,), ps (2,).
     """
     groups = df.groupby(["parameter_index", "simulation_index"])
     data = []
@@ -343,44 +444,25 @@ def _build_data(
             continue
         sub = groups.get_group(ps).sort_values("timesteps")
         sub = sub.replace([np.inf, -np.inf], np.nan).dropna(subset=[cfg.predictor])
-        T = len(sub)
-        if T == 0:
+        if len(sub) == 0:
             continue
 
         abs_t = sub["abs_timesteps"].values.astype(np.float32)
         t = sub["timesteps"].values.astype(np.float32)
 
-        base_static = sub.iloc[0][STATIC_COVARS].values.astype(np.float32)
-        raw_matrix = np.tile(base_static, (T, 1))
-        post_mask = abs_t >= INTERVENTION_DAY
-        for cov in AFTER9_COVARS:
-            if cov in STATIC_COVARS:
-                j = STATIC_COVARS.index(cov)
-                raw_matrix[~post_mask, j] = 0.0
-        scaled = scaler.transform(raw_matrix)
+        scaled_static = _build_static_features(sub, abs_t, scaler)
+        post9, t_since9_yrs = _build_intervention_features(abs_t)
+        time_feats = _build_time_features(abs_t, t, cfg.use_cyclical_time)
 
-        post9 = post_mask.astype(np.float32)
-        t_since9_yrs = (np.maximum(0.0, abs_t - INTERVENTION_DAY) / 365.0).astype(np.float32)
-
-        if cfg.use_cyclical_time:
-            doy = abs_t % 365.0
-            sin_t = np.sin(2 * math.pi * doy / 365.0).astype(np.float32)
-            cos_t = np.cos(2 * math.pi * doy / 365.0).astype(np.float32)
-            X = np.concatenate([sin_t[:, None], cos_t[:, None], scaled, post9[:, None], t_since9_yrs[:, None]], axis=1)
-        else:
-            t_min, t_max = t.min(), t.max()
-            t_norm = ((t - t_min) / (t_max - t_min) if t_max > t_min else t).astype(np.float32)
-            X = np.concatenate([t_norm[:, None], scaled, post9[:, None], t_since9_yrs[:, None]], axis=1)
-
-        Y_raw = sub[cfg.predictor].values.astype(np.float32)
-        Y = transform_targets_np(Y_raw, cfg.predictor, cfg.eps_prevalence)
-        W = sub["exposure_pd"].values.astype(np.float32) if cfg.predictor == "cases" else np.ones(T, dtype=np.float32)
+        X = np.concatenate([time_feats, scaled_static, post9[:, None], t_since9_yrs[:, None]], axis=1)
+        Y = _build_targets(sub, cfg.predictor, cfg.eps_prevalence)
+        W = _build_weights(sub, cfg.predictor)
 
         data.append(
             {
                 "x": X,  # (T, input_size)
                 "y": Y,  # (T,)
-                "w": W,  # (T,),
+                "w": W,  # (T,)
                 "ps": np.asarray(ps, dtype=np.int32),  # (2,) parameter_index, simulation_index
             }
         )
