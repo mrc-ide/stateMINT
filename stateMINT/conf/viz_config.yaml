@@ -23,10 +23,10 @@ d_state: 64
 dropout: 0.15
 
 # Checkpointing
-checkpoint_dir: "${output_dir}/ckpts-2026-06-15T10:32:28"
+checkpoint_dir: "train_outputs/prevalence/ckpts-2026-06-15T23:44:49"
 restore_checkpoint: true
 
 # General
 seed: 42
-output_dir: "train_outputs/${predictor}"
+output_dir: "viz_outputs/${predictor}"
 plot_file: "${output_dir}/preds-vs-targets.pdf"

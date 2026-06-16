@@ -14,6 +14,30 @@ log = logging.getLogger(__name__)
 logging.getLogger("absl").setLevel(logging.WARNING)
 
 
+def restore_model(
+    ckptr: ocp.training.Checkpointer,
+    model: nnx.Module,
+    step: int | None = None,
+) -> nnx.Module:
+    """
+    Restore model from checkpoint.
+
+    Args:
+        ckptr: Orbax checkpointer.
+        model: Model to restore.
+        step: Checkpoint step to restore. If None, restore the latest checkpoint.
+
+    Returns:
+        Restored model.
+    """
+    loaded = ckptr.load_checkpointables(
+        step,
+        abstract_checkpointables={"model": nnx.state(model)},
+    )
+    nnx.update(model, loaded["model"])
+    return model
+
+
 def init_or_restore_last(
     ckptr: ocp.training.Checkpointer,
     model: nnx.Module,
@@ -37,11 +61,12 @@ def init_or_restore_last(
         return model, optimizer, 0, float("inf")
 
     log.info(f"Restoring model and optimizer from checkpoint: {ckptr.latest.step}")
-    abstract_state = {
-        "model": nnx.state(model),
-        "optimizer": nnx.state(optimizer),
-    }
-    loaded_state = ckptr.load(abstract_state=abstract_state)
+    loaded_state = ckptr.load_checkpointables(
+        abstract_checkpointables={
+            "model": nnx.state(model),
+            "optimizer": nnx.state(optimizer),
+        }
+    )
     nnx.update(model, loaded_state["model"])
     nnx.update(optimizer, loaded_state["optimizer"])
     metadata = ckptr.metadata()
@@ -74,7 +99,7 @@ class CheckpointSession:
             return False
 
         self.best_val_loss = val_loss
-        self.ckptr.save(
+        self.ckptr.save_checkpointables(
             epoch,
             {
                 "model": nnx.state(self.model),

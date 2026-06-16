@@ -24,7 +24,7 @@ d_state: 64
 # Hyperparameters
 num_epochs: 200
 min_epochs: 100
-patience: 20
+patience: 50
 diff_loss_alpha: 0.05
 lr: 1e-3
 batch_size: 128
