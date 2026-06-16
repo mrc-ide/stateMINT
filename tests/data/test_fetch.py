@@ -1,6 +1,5 @@
 import duckdb
 import numpy as np
-import pandas as pd
 import pytest
 
 from stateMINT.data.fetch import save_fetched_filtered_data
@@ -9,9 +8,20 @@ from stateMINT.data.fetch import save_fetched_filtered_data
 def _read_parquet(path):
     return duckdb.read_parquet(str(path)).df()
 
+
 STATIC = [
-    "eir", "dn0_use", "dn0_future", "Q0", "phi_bednets", "seasonal",
-    "routine", "itn_use", "irs_use", "itn_future", "irs_future", "lsm",
+    "eir",
+    "dn0_use",
+    "dn0_future",
+    "Q0",
+    "phi_bednets",
+    "seasonal",
+    "routine",
+    "itn_use",
+    "irs_use",
+    "itn_future",
+    "irs_future",
+    "lsm",
 ]
 
 
@@ -33,7 +43,6 @@ def _make_db(db_path, n_days=400):
                 **{c: 0.5 for c in STATIC},
             }
         )
-    df = pd.DataFrame(rows)
     con = duckdb.connect(str(db_path))
     con.execute("CREATE TABLE simulation_results AS SELECT * FROM df")
     con.close()

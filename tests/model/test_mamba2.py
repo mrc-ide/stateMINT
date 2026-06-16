@@ -28,6 +28,7 @@ def test_from_cfg_builds_model(tiny_model_kwargs):
     assert out.shape == (1, 3, 1)
 
 
+@pytest.mark.skip(reason="This test is for profiling and not for CI.")
 def test_train_config_forward_pass_time():
     input_size = 16
     time_series_length = 157
