@@ -6,6 +6,9 @@ from omegaconf import DictConfig
 from mamba2_jax import Mamba2Config, Mamba2Model
 from wandb.util import np
 
+from stateMINT.model.hub import load_model_artifact, ModelArtifact
+from stateMINT.common.dataclasses import Predictor
+
 
 class Mamba2Regressor(nnx.Module):
     """Per-timestep sequence regressor built on the Mamba2 backbone.
@@ -112,6 +115,46 @@ class Mamba2Regressor(nnx.Module):
             output_dim=cfg.output_dim,
             dropout=cfg.dropout,
             rngs=nnx.Rngs(cfg.seed),
+        )
+
+    @classmethod
+    def from_pretrained(
+        cls: type["Mamba2Regressor"],
+        path_or_repo_id: str,
+        predictor: Predictor,
+        *,
+        revision: str | None = None,
+        cache_dir: str | None = None,
+        local_dir: str | None = None,
+    ) -> ModelArtifact:
+        """
+        Load a pretrained model from a local folder or Hugging Face repo.
+
+        Example usage:
+        ```
+        Mamba2Regressor.from_pretrained("dide-ic/stateMINT", predictor="prevalence")
+        Mamba2Regressor.from_pretrained("dide-ic/stateMINT", predictor="cases", revision="v1.0.0")
+        Mamba2Regressor.from_pretrained("dide-ic/stateMINT", predictor="prevalence", local_dir="/path/to/local/dir")
+        ```
+
+        Args:
+            path_or_repo_id: Hugging Face repo ID or local folder path.
+            predictor: Target predictor, either "prevalence" or "cases".
+            revision: Optional revision of the model to load from the repo.
+            cache_dir: Optional cache directory for Hugging Face repo.
+            local_dir: Optional local directory to load the artifact from.
+            return_artifact: If True, return a ModelArtifact dataclass instead of just the model.
+
+        Returns:
+            Mamba2Regressor or ModelArtifact depending on return_artifact.
+        """
+        return load_model_artifact(
+            path_or_repo_id,
+            predictor,
+            model_cls=cls,
+            revision=revision,
+            cache_dir=cache_dir,
+            local_dir=local_dir,
         )
 
 

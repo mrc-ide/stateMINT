@@ -24,7 +24,6 @@ dropout: 0.15
 
 # Checkpointing
 checkpoint_dir: "train_outputs/prevalence/ckpts-2026-06-15T23:44:49"
-restore_checkpoint: true
 
 # General
 seed: 42

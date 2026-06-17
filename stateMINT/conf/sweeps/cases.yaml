@@ -14,12 +14,12 @@ metric:
 parameters:
   lr:
     distribution: log_uniform_values
-    min: 0.0001
-    max: 0.008
+    min: 0.0009
+    max: 0.009
   dropout:
     distribution: uniform
-    min: 0.1
-    max: 0.4
+    min: 0.25
+    max: 0.5
   batch_size:
     values: [128]
 
@@ -28,6 +28,11 @@ parameters:
     values: [128]
   d_model:
     values: [256]
+
+  use_cyclical_time:
+    values: [true, false]
+  diff_loss_alpha:
+    values: [0, 0.05]
 
 
 command:

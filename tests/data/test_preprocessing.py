@@ -5,6 +5,7 @@ import pytest
 from stateMINT.data.preprocessing import (
     StandardScaler,
     prepare_data,
+    get_input_size,
     STATIC_COVARS,
     INTERVENTION_DAY,
     _AFTER9_COL_INDICES,
@@ -14,6 +15,25 @@ from stateMINT.data.preprocessing import (
     _build_targets,
     _build_weights,
 )
+
+
+# ----------------------- get_input_size -----------------------
+
+
+def test_get_input_size_cyclical():
+    assert get_input_size(use_cyclical_time=True) == 2 + len(STATIC_COVARS) + 2
+
+
+def test_get_input_size_linear():
+    assert get_input_size(use_cyclical_time=False) == 1 + len(STATIC_COVARS) + 2
+
+
+def test_get_input_size_cyclical_exceeds_linear_by_one():
+    assert get_input_size(use_cyclical_time=True) - get_input_size(use_cyclical_time=False) == 1
+
+
+def test_get_input_size_returns_int():
+    assert isinstance(get_input_size(use_cyclical_time=True), int)
 
 
 # ----------------------- StandardScaler -----------------------

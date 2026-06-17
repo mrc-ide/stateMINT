@@ -28,7 +28,7 @@ def test_from_cfg_builds_model(tiny_model_kwargs):
     assert out.shape == (1, 3, 1)
 
 
-@pytest.mark.skip(reason="This test is for profiling and not for CI.")
+@pytest.mark.skip(reason="This test is for profiling and not for regular test runs.")
 def test_train_config_forward_pass_time():
     input_size = 16
     time_series_length = 157
@@ -53,3 +53,53 @@ def test_train_config_forward_pass_time():
     print(f"train_config forward pass time: {avg_elapsed:.6f} seconds (avg of 5 runs)")
     assert out.shape == (1, time_series_length)  # type: ignore
     assert elapsed >= 0.0  # type: ignore
+
+
+@pytest.mark.local
+def test_prevalence_from_pretrained_from_hub():
+    input_size = 16
+    time_series_length = 157
+    x = jnp.ones((1, time_series_length, input_size), dtype=jnp.float32)
+
+    model_artifact = Mamba2Regressor.from_pretrained(
+        "dide-ic/stateMINT",
+        predictor="prevalence",
+    )
+
+    out = forward(model_artifact.model, x)
+
+    assert out.shape == (1, time_series_length)
+
+
+@pytest.mark.local
+def test_cases_from_pretrained_from_hub():
+    input_size = 16
+    time_series_length = 157
+    x = jnp.ones((1, time_series_length, input_size), dtype=jnp.float32)
+
+    model_artifact = Mamba2Regressor.from_pretrained(
+        "dide-ic/stateMINT",
+        predictor="cases",
+    )
+
+    out = forward(model_artifact.model, x)
+
+    assert out.shape == (1, time_series_length)
+
+
+# ensure the artifacts are downloaded and cached locally before running this test
+@pytest.mark.local
+def test_from_pretrained_with_local_dir():
+    input_size = 16
+    time_series_length = 157
+    x = jnp.ones((1, time_series_length, input_size), dtype=jnp.float32)
+
+    model_artifact = Mamba2Regressor.from_pretrained(
+        "dide-ic/stateMINT",
+        predictor="prevalence",
+        local_dir="artifacts/prevalence",
+    )
+
+    out = forward(model_artifact.model, x)
+
+    assert out.shape == (1, time_series_length)

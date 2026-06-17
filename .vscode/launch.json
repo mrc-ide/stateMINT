@@ -29,6 +29,26 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "justMyCode": false
-        }
+        },
+            {
+            "name": "debug test function",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "/home/anmol/code/stateMINT/.venv/bin/python",
+            "module": "pytest",
+            "args": [
+                "tests/model/test_mamba2.py",
+                "-k",
+                "test_from_pretrained_with_local_dir"
+            ],
+            "env": {
+                // "JAX_DISABLE_JIT": "true",
+                // "UV_MANAGED_PYTHON": "true"
+                // "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false
+        },
     ]
 }

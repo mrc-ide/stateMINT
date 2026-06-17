@@ -34,6 +34,21 @@ INTERVENTION_DAY = 9 * 365
 _AFTER9_COL_INDICES: list[int] = [STATIC_COVARS.index(c) for c in AFTER9_COVARS if c in STATIC_COVARS]
 
 
+def get_input_size(use_cyclical_time: bool) -> int:
+    """
+    Compute the input size for the model based on time feature encoding.
+
+    Args:
+        use_cyclical_time: Whether to use cyclical encoding for time features.
+    Returns:
+        Input size for the model.
+    """
+    time_features = 2 if use_cyclical_time else 1
+    intervention_features = 2  # post9 flag and time_since_post9
+    static_features = len(STATIC_COVARS)
+    return time_features + static_features + intervention_features
+
+
 class StandardScaler:
     def __init__(self):
         """
@@ -152,9 +167,7 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
     scaler = _fit_scaler(df, train_ps, cfg.output_dir)
 
     # Input size
-    input_size = (
-        (2 if cfg.use_cyclical_time else 1) + len(STATIC_COVARS) + 2
-    )  # time features + static + post9 flag, time_since_post9 (years)
+    input_size = get_input_size(cfg.use_cyclical_time)
     log.info(f"Input size for models set to {input_size}")
 
     # Build data
