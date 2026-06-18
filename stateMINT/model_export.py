@@ -8,7 +8,7 @@ from omegaconf import DictConfig, OmegaConf
 from orbax.checkpoint import v1 as ocp
 
 
-from stateMINT.data.preprocessing import AFTER9_COVARS, INTERVENTION_DAY, STATIC_COVARS, StandardScaler, get_input_size
+from stateMINT.data.preprocessing import AFTER9_COVARS, INTERVENTION_DAY, STATIC_COVARS, StandardScaler, INPUT_SIZE
 from stateMINT.model.mamba2 import Mamba2Regressor
 from stateMINT.training.checkpoint import restore_model
 
@@ -34,8 +34,7 @@ def main(cfg: DictConfig) -> None:
     if scaler.mean_ is None or scaler.scale_ is None:
         raise ValueError("Scaler has not been fitted yet. Please fit the scaler before exporting the model.")
 
-    input_size = get_input_size(cfg.use_cyclical_time)
-    model = Mamba2Regressor.from_cfg(cfg, input_size=input_size)
+    model = Mamba2Regressor.from_cfg(cfg, input_size=INPUT_SIZE)
     with ocp.training.Checkpointer(ckpt_dir) as ckptr:
         model = restore_model(ckptr, model)
     model.eval()
@@ -46,7 +45,7 @@ def main(cfg: DictConfig) -> None:
     model_config = dict(
         model_type="Mamba2Regressor",
         predictor=cfg.predictor,
-        input_size=input_size,
+        input_size=INPUT_SIZE,
         d_model=cfg.d_model,
         n_layers=cfg.n_layers,
         d_state=cfg.d_state,
@@ -56,13 +55,11 @@ def main(cfg: DictConfig) -> None:
         chunk_size=cfg.chunk_size,
         output_dim=cfg.output_dim,
         dropout=cfg.dropout,
-        seed=cfg.seed,
     )
     preprocessing_config = dict(
         static_covars=STATIC_COVARS,
         after_intervention=AFTER9_COVARS,
         intervention_day=INTERVENTION_DAY,
-        use_cyclical_time=cfg.use_cyclical_time,
         predictor=cfg.predictor,
         eps_prevalence=cfg.eps_prevalence,
         scaler_mean=scaler.mean_.tolist(),

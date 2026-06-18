@@ -6,7 +6,6 @@ defaults:
 data_file: "data/filtered_data_${predictor}.parquet"
 split_file: "data/split_${predictor}.json"
 num_workers: 0
-use_cyclical_time: true
 use_existing_split: true
 eps_prevalence: 1.0e-5
 window_size: 14
@@ -23,7 +22,7 @@ d_state: 64
 dropout: 0.15
 
 # Checkpointing
-checkpoint_dir: "train_outputs/prevalence/ckpts-2026-06-15T23:44:49"
+checkpoint_dir: "train_outputs/prevalence/ckpts-2026-06-17T11:36:28"
 
 # General
 seed: 42

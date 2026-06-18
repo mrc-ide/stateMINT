@@ -1,13 +1,10 @@
-defaults:
-  - _self_
-  - target: prevalence
+predictor: prevalence
 
 # Data
-use_cyclical_time: true
 eps_prevalence: 1.0e-5
 scaler_file: train_outputs/${predictor}/static_scaler.pkl
 
-# Model
+# Model - ensure these match the checkpointed model's hyperparameters
 n_layers: 4
 d_conv: 4
 expand: 2

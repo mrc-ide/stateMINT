@@ -114,7 +114,7 @@ class Mamba2Regressor(nnx.Module):
             chunk_size=cfg.chunk_size,
             output_dim=cfg.output_dim,
             dropout=cfg.dropout,
-            rngs=nnx.Rngs(cfg.seed),
+            rngs=nnx.Rngs(cfg.get("seed", 0)),
         )
 
     @classmethod

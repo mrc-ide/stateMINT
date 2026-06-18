@@ -57,7 +57,6 @@ def make_cfg(tmp_path, predictor="prevalence", **overrides):
             "use_existing_split": False,
             "split_file": str(tmp_path / "split.csv"),
             "output_dir": str(tmp_path),
-            "use_cyclical_time": True,
             "eps_prevalence": 1e-5,
         }
     )

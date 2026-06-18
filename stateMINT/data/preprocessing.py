@@ -1,14 +1,14 @@
 import logging
-import math
+import pickle
 import random
 from dataclasses import dataclass, field
-import pickle
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
 
+from ..common.dataclasses import Predictor
 from ..common.utils import transform_targets_np
 
 log = logging.getLogger(__name__)
@@ -31,22 +31,9 @@ AFTER9_COVARS = ["dn0_future", "itn_future", "irs_future", "lsm", "routine"]
 INTERVENTION_DAY = 9 * 365
 
 # Precomputed column indices for AFTER9_COVARS within STATIC_COVARS.
-_AFTER9_COL_INDICES: list[int] = [STATIC_COVARS.index(c) for c in AFTER9_COVARS if c in STATIC_COVARS]
+_AFTER9_COL_INDICES = np.array([STATIC_COVARS.index(c) for c in AFTER9_COVARS if c in STATIC_COVARS], dtype=np.intp)
 
-
-def get_input_size(use_cyclical_time: bool) -> int:
-    """
-    Compute the input size for the model based on time feature encoding.
-
-    Args:
-        use_cyclical_time: Whether to use cyclical encoding for time features.
-    Returns:
-        Input size for the model.
-    """
-    time_features = 2 if use_cyclical_time else 1
-    intervention_features = 2  # post9 flag and time_since_post9
-    static_features = len(STATIC_COVARS)
-    return time_features + static_features + intervention_features
+INPUT_SIZE = 1 + len(STATIC_COVARS) + 2  # time features + static covars + intervention features
 
 
 class StandardScaler:
@@ -166,10 +153,6 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
     # Scaler fitted on train data only
     scaler = _fit_scaler(df, train_ps, cfg.output_dir)
 
-    # Input size
-    input_size = get_input_size(cfg.use_cyclical_time)
-    log.info(f"Input size for models set to {input_size}")
-
     # Build data
     train_data = _build_data(df, train_ps, scaler, cfg)
     val_data = _build_data(df, val_ps, scaler, cfg)
@@ -179,7 +162,7 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
         train_data=train_data,
         val_data=val_data,
         test_data=test_data,
-        input_size=input_size,
+        input_size=INPUT_SIZE,
         scaler=scaler,
         train_param_sims=train_ps,
         val_param_sims=val_ps,
@@ -322,7 +305,6 @@ def _fit_scaler(df: pd.DataFrame, train_ps: set[tuple[int, int]], output_dir: st
     scaler = StandardScaler()
     scaler.fit(train_static)
 
-    # TODO: check if need saving
     save_path = Path(output_dir) / "static_scaler.pkl"
     with open(save_path, "wb") as f:
         pickle.dump(scaler, f)
@@ -345,12 +327,12 @@ def _build_static_features(sub: pd.DataFrame, abs_t: np.ndarray, scaler: Standar
     Returns:
         Scaled static feature matrix of shape (T, len(STATIC_COVARS)).
     """
-    T = len(abs_t)
-    base_static = sub.iloc[0][STATIC_COVARS].values.astype(np.float32)
-    raw_matrix = np.tile(base_static, (T, 1))
-    pre_mask = abs_t < INTERVENTION_DAY
-    if pre_mask.any():
-        raw_matrix[np.ix_(pre_mask, _AFTER9_COL_INDICES)] = 0.0
+    base_static = np.asarray(sub.iloc[0][STATIC_COVARS].values, dtype=np.float32)
+    masked_static = base_static.copy()
+    masked_static[_AFTER9_COL_INDICES] = 0.0
+
+    # For each timestep, use masked_static if before intervention, else base_static.
+    raw_matrix = np.where((abs_t < INTERVENTION_DAY)[:, None], masked_static, base_static)
     return scaler.transform(raw_matrix)
 
 
@@ -370,31 +352,23 @@ def _build_intervention_features(abs_t: np.ndarray) -> tuple[np.ndarray, np.ndar
     return post9, t_since9_yrs
 
 
-def _build_time_features(abs_t: np.ndarray, t: np.ndarray, use_cyclical: bool) -> np.ndarray:
+def _build_time_features(t: np.ndarray) -> np.ndarray:
     """
-    Build time feature columns — either cyclical (sin/cos of day-of-year) or
-    min-max normalised absolute time.
+    Build time feature columns — min-max normalised absolute time.
 
     Args:
         abs_t: Absolute timestep values (float32, shape T).
         t: Relative timestep values (float32, shape T).
-        use_cyclical: Whether to use cyclical encoding.
 
     Returns:
-        Time feature matrix of shape (T, 2) for cyclical or (T, 1) for linear.
+        Time feature matrix of shape (T, 1).
     """
-    if use_cyclical:
-        doy = abs_t % 365.0
-        sin_t = np.sin(2 * math.pi * doy / 365.0).astype(np.float32)
-        cos_t = np.cos(2 * math.pi * doy / 365.0).astype(np.float32)
-        return np.stack([sin_t, cos_t], axis=1)
-    else:
-        t_min, t_max = t.min(), t.max()
-        t_norm = ((t - t_min) / (t_max - t_min) if t_max > t_min else t).astype(np.float32)
-        return t_norm[:, None]
+    t_min, t_max = t.min(), t.max()
+    t_norm = ((t - t_min) / (t_max - t_min) if t_max > t_min else t).astype(np.float32)
+    return t_norm[:, None]
 
 
-def _build_targets(sub: pd.DataFrame, predictor: str, eps_prevalence: float) -> np.ndarray:
+def _build_targets(sub: pd.DataFrame, predictor: Predictor, eps_prevalence: float) -> np.ndarray:
     """
     Extract and transform target values.
 
@@ -406,7 +380,7 @@ def _build_targets(sub: pd.DataFrame, predictor: str, eps_prevalence: float) -> 
     Returns:
         Transformed target array of shape (T,).
     """
-    Y_raw = sub[predictor].values.astype(np.float32)
+    Y_raw = np.asarray(sub[predictor].values, dtype=np.float32)
     return transform_targets_np(Y_raw, predictor, eps_prevalence)
 
 
@@ -424,7 +398,7 @@ def _build_weights(sub: pd.DataFrame, predictor: str) -> np.ndarray:
         Weight array of shape (T,).
     """
     if predictor == "cases":
-        return sub["exposure_pd"].values.astype(np.float32)
+        return np.asarray(sub["exposure_pd"].values, dtype=np.float32)
     return np.ones(len(sub), dtype=np.float32)
 
 
@@ -460,12 +434,12 @@ def _build_data(
         if len(sub) == 0:
             continue
 
-        abs_t = sub["abs_timesteps"].values.astype(np.float32)
-        t = sub["timesteps"].values.astype(np.float32)
+        abs_t = np.asarray(sub["abs_timesteps"].values, dtype=np.float32)
+        t = np.asarray(sub["timesteps"].values, dtype=np.float32)
 
         scaled_static = _build_static_features(sub, abs_t, scaler)
         post9, t_since9_yrs = _build_intervention_features(abs_t)
-        time_feats = _build_time_features(abs_t, t, cfg.use_cyclical_time)
+        time_feats = _build_time_features(t)
 
         X = np.concatenate([time_feats, scaled_static, post9[:, None], t_since9_yrs[:, None]], axis=1)
         Y = _build_targets(sub, cfg.predictor, cfg.eps_prevalence)

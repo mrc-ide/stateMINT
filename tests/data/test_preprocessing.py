@@ -5,35 +5,16 @@ import pytest
 from stateMINT.data.preprocessing import (
     StandardScaler,
     prepare_data,
-    get_input_size,
     STATIC_COVARS,
     INTERVENTION_DAY,
     _AFTER9_COL_INDICES,
+    INPUT_SIZE,
     _build_static_features,
     _build_intervention_features,
     _build_time_features,
     _build_targets,
     _build_weights,
 )
-
-
-# ----------------------- get_input_size -----------------------
-
-
-def test_get_input_size_cyclical():
-    assert get_input_size(use_cyclical_time=True) == 2 + len(STATIC_COVARS) + 2
-
-
-def test_get_input_size_linear():
-    assert get_input_size(use_cyclical_time=False) == 1 + len(STATIC_COVARS) + 2
-
-
-def test_get_input_size_cyclical_exceeds_linear_by_one():
-    assert get_input_size(use_cyclical_time=True) - get_input_size(use_cyclical_time=False) == 1
-
-
-def test_get_input_size_returns_int():
-    assert isinstance(get_input_size(use_cyclical_time=True), int)
 
 
 # ----------------------- StandardScaler -----------------------
@@ -77,8 +58,7 @@ def test_prepare_data_shapes_and_split(sample_df, cfg_factory, predictor):
     assert len(all_ps) == 4
     assert not (prepared.train_param_sims & prepared.test_param_sims)
 
-    # input_size: 2 cyclical time feats + 12 static + post9 + time_since9
-    assert prepared.input_size == 2 + len(STATIC_COVARS) + 2
+    assert prepared.input_size == INPUT_SIZE
 
     sample = prepared.train_data[0]
     T = sample["x"].shape[0]
@@ -86,13 +66,6 @@ def test_prepare_data_shapes_and_split(sample_df, cfg_factory, predictor):
     assert sample["y"].shape == (T,)
     assert sample["w"].shape == (T,)
     assert np.all(np.isfinite(sample["x"]))
-
-
-def test_prepare_data_non_cyclical_input_size(sample_df, cfg_factory):
-    cfg = cfg_factory(use_cyclical_time=False)
-    prepared = prepare_data(sample_df, cfg)
-    assert prepared.input_size == 1 + len(STATIC_COVARS) + 2
-    assert prepared.train_data[0]["x"].shape[1] == prepared.input_size
 
 
 def test_prepare_data_writes_scaler_and_split(sample_df, cfg_factory, tmp_path):
@@ -215,36 +188,22 @@ def test_build_intervention_features_dtype(straddling_abs_t):
 # _build_time_features
 
 
-def test_build_time_features_cyclical_shape(straddling_abs_t):
-    t = np.arange(len(straddling_abs_t), dtype=np.float32)
-    out = _build_time_features(straddling_abs_t, t, use_cyclical=True)
-    assert out.shape == (len(straddling_abs_t), 2)
-
-
-def test_build_time_features_cyclical_unit_circle(straddling_abs_t):
-    t = np.arange(len(straddling_abs_t), dtype=np.float32)
-    out = _build_time_features(straddling_abs_t, t, use_cyclical=True)
-    norms_sq = out[:, 0] ** 2 + out[:, 1] ** 2
-    np.testing.assert_allclose(norms_sq, 1.0, atol=1e-6)
-
-
 def test_build_time_features_linear_shape(straddling_abs_t):
     t = np.arange(len(straddling_abs_t), dtype=np.float32)
-    out = _build_time_features(straddling_abs_t, t, use_cyclical=False)
+    out = _build_time_features(t)
     assert out.shape == (len(straddling_abs_t), 1)
 
 
 def test_build_time_features_linear_range(straddling_abs_t):
     t = np.arange(len(straddling_abs_t), dtype=np.float32)
-    out = _build_time_features(straddling_abs_t, t, use_cyclical=False)
+    out = _build_time_features(t)
     assert out.min() >= 0.0
     assert out.max() <= 1.0
 
 
 def test_build_time_features_linear_constant_t():
-    abs_t = np.array([100.0, 200.0], dtype=np.float32)
     t = np.array([5.0, 5.0], dtype=np.float32)
-    out = _build_time_features(abs_t, t, use_cyclical=False)
+    out = _build_time_features(t)
     # When t is constant, no normalization — returns t unchanged.
     np.testing.assert_array_equal(out.squeeze(), t)
 

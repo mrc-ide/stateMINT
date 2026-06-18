@@ -28,10 +28,6 @@ parameters:
     values: [128]
   d_model:
     values: [256]
-  use_cyclical_time:
-    values: [true, false]
-  diff_loss_alpha:
-    values: [0, 0.05]
 
 
 command:

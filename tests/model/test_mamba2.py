@@ -18,7 +18,7 @@ def test_forward_output_shape(tiny_model_kwargs):
 def test_invalid_head_dim_raises():
     # d_model * expand must be divisible by head_dim.
     with pytest.raises(AssertionError):
-        Mamba2Regressor(input_dim=3, d_model=16, expand=2, head_dim=7, rngs=nnx.Rngs(0))
+        Mamba2Regressor(input_dim=3, d_model=15, expand=2, head_dim=7, rngs=nnx.Rngs(0))
 
 
 def test_from_cfg_builds_model(tiny_model_kwargs):
@@ -30,7 +30,7 @@ def test_from_cfg_builds_model(tiny_model_kwargs):
 
 @pytest.mark.skip(reason="This test is for profiling and not for regular test runs.")
 def test_train_config_forward_pass_time():
-    input_size = 16
+    input_size = 15
     time_series_length = 157
     x = jnp.ones((1, time_series_length, input_size), dtype=jnp.float32)
 
@@ -57,7 +57,7 @@ def test_train_config_forward_pass_time():
 
 @pytest.mark.local
 def test_prevalence_from_pretrained_from_hub():
-    input_size = 16
+    input_size = 15
     time_series_length = 157
     x = jnp.ones((1, time_series_length, input_size), dtype=jnp.float32)
 
@@ -73,7 +73,7 @@ def test_prevalence_from_pretrained_from_hub():
 
 @pytest.mark.local
 def test_cases_from_pretrained_from_hub():
-    input_size = 16
+    input_size = 15
     time_series_length = 157
     x = jnp.ones((1, time_series_length, input_size), dtype=jnp.float32)
 
@@ -87,10 +87,10 @@ def test_cases_from_pretrained_from_hub():
     assert out.shape == (1, time_series_length)
 
 
-# ensure the artifacts are downloaded and cached locally before running this test
+# ensure the artifacts are present running this test
 @pytest.mark.local
 def test_from_pretrained_with_local_dir():
-    input_size = 16
+    input_size = 15
     time_series_length = 157
     x = jnp.ones((1, time_series_length, input_size), dtype=jnp.float32)
 

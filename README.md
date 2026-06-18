@@ -35,3 +35,11 @@ hf upload dide-ic/stateMINT artifacts/prevalence prevalence/ --commit-message "A
 # with PR
 hf upload dide-ic/stateMINT artifacts/prevalence prevalence/ --commit-message "Add prevalence model artifact" --create-pr
 ```
+
+To create a tag:
+```bash
+hf repos tag create dide-ic/stateMINT v<MAJOR.MINOR.PATCH> --revision <COMMIT_HASH/BRANCH/TAG> --message "<TAG_MESSAGE>"
+
+# example
+hf repos tag create dide-ic/stateMINT v1.0.2 --revision main --message "Release version 1.0.0"
+```
