@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from omegaconf import OmegaConf
 
-from stateMINT.data.preprocessing import STATIC_COVARS, INTERVENTION_DAY
+from stateMINT.data import STATIC_COVARS, INTERVENTION_DAY
 
 
 @pytest.fixture

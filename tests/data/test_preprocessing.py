@@ -3,18 +3,15 @@ import pandas as pd
 import pytest
 
 from stateMINT.data.preprocessing import (
-    StandardScaler,
     prepare_data,
-    STATIC_COVARS,
-    INTERVENTION_DAY,
     _AFTER9_COL_INDICES,
-    INPUT_SIZE,
     _build_static_features,
     _build_intervention_features,
     _build_time_features,
     _build_targets,
     _build_weights,
 )
+from stateMINT.data import STATIC_COVARS, INTERVENTION_DAY, INPUT_SIZE, StandardScaler
 
 
 # ----------------------- StandardScaler -----------------------

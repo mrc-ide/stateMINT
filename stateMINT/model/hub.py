@@ -11,7 +11,7 @@ from omegaconf import OmegaConf
 from orbax.checkpoint import v1 as ocp
 
 from stateMINT.common.dataclasses import Predictor, ModelFactory
-from stateMINT.data.preprocessing import StandardScaler
+from stateMINT.data import StandardScaler
 from stateMINT.training.checkpoint import restore_model
 
 

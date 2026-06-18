@@ -14,14 +14,14 @@ metric:
 parameters:
   lr:
     distribution: log_uniform_values
-    min: 0.0009
+    min: 0.001
     max: 0.009
   dropout:
     distribution: uniform
     min: 0.25
     max: 0.5
   batch_size:
-    values: [128]
+    values: [64,128]
 
   # model-specific
   d_state:
@@ -40,5 +40,5 @@ command:
   - ${args_no_hyphens}
   - target=cases
   - use_wandb=true
-  - num_epochs=200
-  - patience=50
+  - num_epochs=300
+  - patience=100

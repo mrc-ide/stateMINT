@@ -10,99 +10,20 @@ from omegaconf import DictConfig
 
 from ..common.dataclasses import Predictor
 from ..common.utils import transform_targets_np
+from .features import (
+    AFTER9_COVARS,
+    INTERVENTION_DAY,
+    STATIC_COVARS,
+    INPUT_SIZE,
+    BURNIN_DAY,
+    TOTAL_DAYS,
+    StandardScaler,
+)
 
 log = logging.getLogger(__name__)
 
-STATIC_COVARS = [
-    "eir",
-    "dn0_use",
-    "dn0_future",
-    "Q0",
-    "phi_bednets",
-    "seasonal",
-    "routine",
-    "itn_use",
-    "irs_use",
-    "itn_future",
-    "irs_future",
-    "lsm",
-]
-AFTER9_COVARS = ["dn0_future", "itn_future", "irs_future", "lsm", "routine"]
-INTERVENTION_DAY = 9 * 365
-
 # Precomputed column indices for AFTER9_COVARS within STATIC_COVARS.
 _AFTER9_COL_INDICES = np.array([STATIC_COVARS.index(c) for c in AFTER9_COVARS if c in STATIC_COVARS], dtype=np.intp)
-
-INPUT_SIZE = 1 + len(STATIC_COVARS) + 2  # time features + static covars + intervention features
-
-
-class StandardScaler:
-    def __init__(self):
-        """
-        Initialize an unfitted scaler.
-
-        Returns:
-            None.
-        """
-        self.mean_: np.ndarray | None = None
-        self.scale_: np.ndarray | None = None
-
-    def fit(self, X: np.ndarray) -> "StandardScaler":
-        """
-        Fit feature means and scales.
-
-        Args:
-            X: Feature matrix.
-
-        Returns:
-            Fitted scaler.
-        """
-        self.mean_ = np.mean(X, axis=0)
-        # To avoid division by zero, set scale to 1.0 for any feature with zero variance
-        scale = np.std(X, axis=0)
-        scale[scale == 0] = 1.0
-        self.scale_ = scale
-        return self
-
-    def transform(self, X: np.ndarray) -> np.ndarray:
-        """
-        Standardize features.
-
-        Args:
-            X: Feature matrix.
-
-        Returns:
-            Standardized features.
-        """
-        if self.mean_ is None or self.scale_ is None:
-            raise ValueError("StandardScaler instance is not fitted yet.")
-        return (X - self.mean_) / self.scale_
-
-    def fit_transform(self, X: np.ndarray) -> np.ndarray:
-        """
-        Fit and standardize features.
-
-        Args:
-            X: Feature matrix.
-
-        Returns:
-            Standardized features.
-        """
-        return self.fit(X).transform(X)
-
-    def inverse_transform(self, X: np.ndarray) -> np.ndarray:
-        """
-        Restore standardized features.
-
-        Args:
-            X: Standardized feature matrix.
-
-        Returns:
-            Features in the original scale.
-        """
-        if self.mean_ is None or self.scale_ is None:
-            raise ValueError("StandardScaler instance is not fitted yet.")
-        return X * self.scale_ + self.mean_
 
 
 @dataclass
@@ -121,8 +42,14 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
     """
     Split and transform raw simulation data.
 
-    This filters low-signal parameter-simulation pairs, creates or loads the split,
-    fits static covariate scaling on train data, and builds sequence records.
+    Filters out low-signal parameter-simulation pairs, creates or loads the
+    train/val/test split, fits static covariate scaling on the train split only,
+    and builds per-sequence records for each split.
+
+    Note: each malariasimulation run covers 12 years: a 6-year warmup followed by
+    6 years of actual simulation. Only the latter 6 years are used here; the
+    warmup has already been discarded in the input `df` parameter.
+    The intervention is applied at year 9 (day 9 * 365).
 
     Args:
         df: Raw simulation dataframe.
@@ -168,6 +95,38 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
         val_param_sims=val_ps,
         test_param_sims=test_ps,
     )
+
+
+def build_feature_matrix(
+    base_static: np.ndarray,
+    abs_t: np.ndarray,
+    t: np.ndarray,
+    scaler: StandardScaler,
+    *,
+    intervention_day: int = INTERVENTION_DAY,
+    after9_indices: np.ndarray = _AFTER9_COL_INDICES,
+) -> np.ndarray:
+    """
+    Assemble the (T, INPUT_SIZE) model input from raw static covars + timesteps.
+
+    Shared by training (per parameter-simulation row) and inference (per user input).
+
+    Args:
+        base_static: Raw static covariate vector of shape (len(STATIC_COVARS),).
+        abs_t: Absolute timestep values (float32, shape T).
+        t: Relative timestep values (float32, shape T).
+        scaler: Fitted static covariate scaler.
+        intervention_day: Absolute day the intervention switches on.
+        after9_indices: Column indices to mask before intervention_day.
+
+    Returns:
+        Feature matrix of shape (T, INPUT_SIZE).
+    """
+    scaled_static = _build_static_features(base_static, abs_t, scaler, intervention_day, after9_indices)
+    post9, t_since9_yrs = _build_intervention_features(abs_t, intervention_day)
+    time_feats = _build_time_features(t)
+
+    return np.concatenate([time_feats, scaled_static, post9[:, None], t_since9_yrs[:, None]], axis=1)
 
 
 # -------------- internal helpers ----------------------------------------------------------
@@ -312,49 +271,58 @@ def _fit_scaler(df: pd.DataFrame, train_ps: set[tuple[int, int]], output_dir: st
     return scaler
 
 
-def _build_static_features(sub: pd.DataFrame, abs_t: np.ndarray, scaler: StandardScaler) -> np.ndarray:
+def _build_static_features(
+    base_static: np.ndarray,
+    abs_t: np.ndarray,
+    scaler: StandardScaler,
+    intervention_day: int = INTERVENTION_DAY,
+    after9_indices: np.ndarray = _AFTER9_COL_INDICES,
+) -> np.ndarray:
     """
     Build scaled static covariate matrix with pre-intervention masking.
 
-    AFTER9_COVARS are zeroed out for timesteps before INTERVENTION_DAY because those
-    intervention parameters aren't active yet.
+    AFTER9 covars are zeroed before intervention_day because those parameters
+    aren't active yet.
 
     Args:
-        sub: Rows for one parameter-simulation pair, sorted by timestep.
+        base_static: Raw static covariate vector of shape (len(STATIC_COVARS),).
         abs_t: Absolute timestep values (float32, shape T).
         scaler: Fitted static covariate scaler.
+        intervention_day: Absolute day the intervention switches on.
+        after9_indices: Column indices to mask before intervention_day.
 
     Returns:
         Scaled static feature matrix of shape (T, len(STATIC_COVARS)).
     """
-    base_static = np.asarray(sub.iloc[0][STATIC_COVARS].values, dtype=np.float32)
     masked_static = base_static.copy()
-    masked_static[_AFTER9_COL_INDICES] = 0.0
-
-    # For each timestep, use masked_static if before intervention, else base_static.
-    raw_matrix = np.where((abs_t < INTERVENTION_DAY)[:, None], masked_static, base_static)
+    masked_static[after9_indices] = 0.0
+    raw_matrix = np.where((abs_t < intervention_day)[:, None], masked_static, base_static)
     return scaler.transform(raw_matrix)
 
 
-def _build_intervention_features(abs_t: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _build_intervention_features(
+    abs_t: np.ndarray, intervention_day: int = INTERVENTION_DAY
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Compute post-intervention flag and time-since-intervention in years.
 
     Args:
         abs_t: Absolute timestep values (float32, shape T).
+        intervention_day: Absolute day the intervention switches on.
 
     Returns:
-        post9: Binary flag, 1 on/after INTERVENTION_DAY (shape T).
-        t_since9_yrs: Years elapsed since INTERVENTION_DAY, 0 before (shape T).
+        post9: Binary flag, 1 on/after intervention_day (shape T).
+        t_since9_yrs: Years elapsed since intervention_day, 0 before (shape T).
     """
-    post9 = (abs_t >= INTERVENTION_DAY).astype(np.float32)
-    t_since9_yrs = (np.maximum(0.0, abs_t - INTERVENTION_DAY) / 365.0).astype(np.float32)
+    post9 = (abs_t >= intervention_day).astype(np.float32)
+    t_since9_yrs = (np.maximum(0.0, abs_t - intervention_day) / 365.0).astype(np.float32)
     return post9, t_since9_yrs
 
 
 def _build_time_features(t: np.ndarray) -> np.ndarray:
     """
     Build time feature columns — min-max normalised absolute time.
+    Compute post-intervention flag and time-since-intervention in years.
 
     Args:
         abs_t: Absolute timestep values (float32, shape T).

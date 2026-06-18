@@ -7,8 +7,15 @@ from etils import epath
 from omegaconf import DictConfig, OmegaConf
 from orbax.checkpoint import v1 as ocp
 
-
-from stateMINT.data.preprocessing import AFTER9_COVARS, INTERVENTION_DAY, STATIC_COVARS, StandardScaler, INPUT_SIZE
+from stateMINT.data import (
+    AFTER9_COVARS,
+    BURNIN_DAY,
+    INTERVENTION_DAY,
+    STATIC_COVARS,
+    TOTAL_DAYS,
+    INPUT_SIZE,
+    StandardScaler,
+)
 from stateMINT.model.mamba2 import Mamba2Regressor
 from stateMINT.training.checkpoint import restore_model
 
@@ -56,10 +63,14 @@ def main(cfg: DictConfig) -> None:
         output_dim=cfg.output_dim,
         dropout=cfg.dropout,
     )
+    n_steps = (TOTAL_DAYS - BURNIN_DAY) // cfg.window_size + 1
     preprocessing_config = dict(
         static_covars=STATIC_COVARS,
         after_intervention=AFTER9_COVARS,
         intervention_day=INTERVENTION_DAY,
+        n_steps=n_steps,
+        burnin_day=BURNIN_DAY,
+        window_size=cfg.window_size,
         predictor=cfg.predictor,
         eps_prevalence=cfg.eps_prevalence,
         scaler_mean=scaler.mean_.tolist(),

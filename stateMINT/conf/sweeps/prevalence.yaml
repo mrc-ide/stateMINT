@@ -21,7 +21,7 @@ parameters:
     min: 0.25
     max: 0.5
   batch_size:
-    values: [128]
+    values: [64, 128]
 
   # model-specific
   d_state:

@@ -30,6 +30,7 @@ def test_train_step_reduces_loss(tiny_model_kwargs, batch):
     step = make_train_step("prevalence", diff_alpha=0.05, loss_method=weighted_mse)
 
     first = float(step(model, optimizer, batch))
+    last = first
     for _ in range(10):
         last = float(step(model, optimizer, batch))
     assert last < first  # overfits the single batch
