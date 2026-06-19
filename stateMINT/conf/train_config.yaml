@@ -8,6 +8,7 @@ split_file: "data/split_${predictor}.json"
 num_workers: 0
 use_existing_split: false
 eps_prevalence: 1.0e-5
+use_cyclical_time: true
 
 # Model
 loss_method: stateMINT.training.loss.weighted_mse

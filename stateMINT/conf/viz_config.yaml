@@ -9,6 +9,7 @@ num_workers: 0
 use_existing_split: true
 eps_prevalence: 1.0e-5
 window_size: 14
+use_cyclical_time: true
 
 # Model
 n_layers: 4

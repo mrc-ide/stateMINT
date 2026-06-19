@@ -8,12 +8,12 @@ from omegaconf import DictConfig, OmegaConf
 from orbax.checkpoint import v1 as ocp
 
 from stateMINT.data import (
-    AFTER9_COVARS,
+    AFTER_INTERVENTION_COVARS,
     BURNIN_DAY,
     INTERVENTION_DAY,
     STATIC_COVARS,
     TOTAL_DAYS,
-    INPUT_SIZE,
+    get_input_size,
     StandardScaler,
 )
 from stateMINT.model.mamba2 import Mamba2Regressor
@@ -41,7 +41,7 @@ def main(cfg: DictConfig) -> None:
     if scaler.mean_ is None or scaler.scale_ is None:
         raise ValueError("Scaler has not been fitted yet. Please fit the scaler before exporting the model.")
 
-    model = Mamba2Regressor.from_cfg(cfg, input_size=INPUT_SIZE)
+    model = Mamba2Regressor.from_cfg(cfg, input_size=get_input_size(cfg.use_cyclical_time))
     with ocp.training.Checkpointer(ckpt_dir) as ckptr:
         model = restore_model(ckptr, model)
     model.eval()
@@ -52,7 +52,7 @@ def main(cfg: DictConfig) -> None:
     model_config = dict(
         model_type="Mamba2Regressor",
         predictor=cfg.predictor,
-        input_size=INPUT_SIZE,
+        input_size=get_input_size(cfg.use_cyclical_time),
         d_model=cfg.d_model,
         n_layers=cfg.n_layers,
         d_state=cfg.d_state,
@@ -66,11 +66,12 @@ def main(cfg: DictConfig) -> None:
     n_steps = (TOTAL_DAYS - BURNIN_DAY) // cfg.window_size + 1
     preprocessing_config = dict(
         static_covars=STATIC_COVARS,
-        after_intervention=AFTER9_COVARS,
+        after_intervention=AFTER_INTERVENTION_COVARS,
         intervention_day=INTERVENTION_DAY,
         n_steps=n_steps,
         burnin_day=BURNIN_DAY,
         window_size=cfg.window_size,
+        use_cyclical_time=cfg.use_cyclical_time,
         predictor=cfg.predictor,
         eps_prevalence=cfg.eps_prevalence,
         scaler_mean=scaler.mean_.tolist(),

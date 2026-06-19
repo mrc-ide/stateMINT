@@ -6,7 +6,7 @@ from stateMINT.data.preprocessing import (
     build_feature_matrix,
     build_timestep_grid,
     build_inference_inputs,
-    _AFTER9_COL_INDICES,
+    _AFTER_INTERVENTION_COL_INDICES,
     _build_static_features,
     _build_intervention_features,
     _build_time_features,
@@ -18,10 +18,9 @@ from stateMINT.data import (
     INTERVENTION_DAY,
     BURNIN_DAY,
     TOTAL_DAYS,
-    INPUT_SIZE,
     StandardScaler,
 )
-
+from ..conftest import INPUT_SIZE
 
 # ----------------------- StandardScaler -----------------------
 
@@ -109,14 +108,14 @@ def test_build_static_features_pre_intervention_after9_zeroed(base_static, strad
     out = _build_static_features(base_static, straddling_abs_t, identity_scaler)
     pre_mask = straddling_abs_t < INTERVENTION_DAY
     # With identity scaler, zeroed raw values pass through as 0.0.
-    np.testing.assert_array_equal(out[pre_mask][:, _AFTER9_COL_INDICES], 0.0)
+    np.testing.assert_array_equal(out[pre_mask][:, _AFTER_INTERVENTION_COL_INDICES], 0.0)
 
 
 def test_build_static_features_post_intervention_after9_nonzero(base_static, straddling_abs_t, identity_scaler):
     out = _build_static_features(base_static, straddling_abs_t, identity_scaler)
     post_mask = straddling_abs_t >= INTERVENTION_DAY
     # Static values are in [0.1, 1.0] so post-intervention AFTER9 columns must be non-zero.
-    assert np.all(out[post_mask][:, _AFTER9_COL_INDICES] != 0.0)
+    assert np.all(out[post_mask][:, _AFTER_INTERVENTION_COL_INDICES] != 0.0)
 
 
 def test_build_static_features_scaler_applied(base_static, straddling_abs_t):
@@ -134,24 +133,24 @@ def test_build_static_features_scaler_applied(base_static, straddling_abs_t):
 
 
 def test_build_intervention_features_before_zero(straddling_abs_t):
-    post9, t_since9 = _build_intervention_features(straddling_abs_t)
+    post_intervention, t_since_intervention_yrs = _build_intervention_features(straddling_abs_t)
     pre = straddling_abs_t < INTERVENTION_DAY
-    np.testing.assert_array_equal(post9[pre], 0.0)
-    np.testing.assert_array_equal(t_since9[pre], 0.0)
+    np.testing.assert_array_equal(post_intervention[pre], 0.0)
+    np.testing.assert_array_equal(t_since_intervention_yrs[pre], 0.0)
 
 
 def test_build_intervention_features_at_and_after(straddling_abs_t):
-    post9, t_since9 = _build_intervention_features(straddling_abs_t)
+    post_intervention, t_since_intervention_yrs = _build_intervention_features(straddling_abs_t)
     post = straddling_abs_t >= INTERVENTION_DAY
-    np.testing.assert_array_equal(post9[post], 1.0)
+    np.testing.assert_array_equal(post_intervention[post], 1.0)
     expected = (straddling_abs_t[post] - INTERVENTION_DAY) / 365.0
-    np.testing.assert_allclose(t_since9[post], expected, rtol=1e-6)
+    np.testing.assert_allclose(t_since_intervention_yrs[post], expected, rtol=1e-6)
 
 
 def test_build_intervention_features_dtype(straddling_abs_t):
-    post9, t_since9 = _build_intervention_features(straddling_abs_t)
-    assert post9.dtype == np.float32
-    assert t_since9.dtype == np.float32
+    post_intervention, t_since_intervention_yrs = _build_intervention_features(straddling_abs_t)
+    assert post_intervention.dtype == np.float32
+    assert t_since_intervention_yrs.dtype == np.float32
 
 
 # _build_time_features
@@ -159,22 +158,47 @@ def test_build_intervention_features_dtype(straddling_abs_t):
 
 def test_build_time_features_linear_shape(straddling_abs_t):
     t = np.arange(len(straddling_abs_t), dtype=np.float32)
-    out = _build_time_features(t)
+    out = _build_time_features(straddling_abs_t, t, use_cyclical_time=False)
     assert out.shape == (len(straddling_abs_t), 1)
 
 
 def test_build_time_features_linear_range(straddling_abs_t):
     t = np.arange(len(straddling_abs_t), dtype=np.float32)
-    out = _build_time_features(t)
+    out = _build_time_features(straddling_abs_t, t, use_cyclical_time=False)
     assert out.min() >= 0.0
     assert out.max() <= 1.0
 
 
 def test_build_time_features_linear_constant_t():
+    abs_t = np.array([5.0, 5.0], dtype=np.float32)
     t = np.array([5.0, 5.0], dtype=np.float32)
-    out = _build_time_features(t)
+    out = _build_time_features(abs_t, t, use_cyclical_time=False)
     # When t is constant, no normalization — returns t unchanged.
     np.testing.assert_array_equal(out.squeeze(), t)
+
+
+def test_build_time_features_cyclical_shape(straddling_abs_t):
+    t = np.arange(len(straddling_abs_t), dtype=np.float32)
+    out = _build_time_features(straddling_abs_t, t, use_cyclical_time=True)
+    assert out.shape == (len(straddling_abs_t), 2)
+
+
+def test_build_time_features_cyclical_is_sin_cos_of_doy(straddling_abs_t):
+    t = np.arange(len(straddling_abs_t), dtype=np.float32)
+    out = _build_time_features(straddling_abs_t, t, use_cyclical_time=True)
+    doy = straddling_abs_t % 365.0
+    expected_sin = np.sin(2 * np.pi * doy / 365.0).astype(np.float32)
+    expected_cos = np.cos(2 * np.pi * doy / 365.0).astype(np.float32)
+    np.testing.assert_allclose(out[:, 0], expected_sin, rtol=1e-6)
+    np.testing.assert_allclose(out[:, 1], expected_cos, rtol=1e-6)
+
+
+def test_build_time_features_cyclical_bounded():
+    abs_t = np.arange(0, 365 * 3, 14, dtype=np.float32)
+    t = np.arange(len(abs_t), dtype=np.float32)
+    out = _build_time_features(abs_t, t, use_cyclical_time=True)
+    assert out.min() >= -1.0
+    assert out.max() <= 1.0
 
 
 # _build_targets
@@ -222,16 +246,17 @@ def test_build_feature_matrix_shape(base_static, straddling_abs_t, identity_scal
 
 
 def test_build_feature_matrix_column_layout(base_static, straddling_abs_t, identity_scaler):
-    # Columns are [time(1), static(len), post9(1), t_since9(1)] in that order.
+    # Columns are [time(2, cyclical), static(len), post_intervention(1), t_since_intervention_yrs(1)] in that order.
     t = np.arange(1, len(straddling_abs_t) + 1, dtype=np.float32)
-    X = build_feature_matrix(base_static, straddling_abs_t, t, identity_scaler)
+    X = build_feature_matrix(base_static, straddling_abs_t, t, identity_scaler, use_cyclical_time=True)
 
     scaled = _build_static_features(base_static, straddling_abs_t, identity_scaler)
-    post9, t_since9 = _build_intervention_features(straddling_abs_t)
-    np.testing.assert_array_equal(X[:, 0], _build_time_features(t).squeeze(1))
-    np.testing.assert_array_equal(X[:, 1 : 1 + len(STATIC_COVARS)], scaled)
-    np.testing.assert_array_equal(X[:, -2], post9)
-    np.testing.assert_array_equal(X[:, -1], t_since9)
+    post_intervention, t_since_intervention_yrs = _build_intervention_features(straddling_abs_t)
+    time_feats = _build_time_features(straddling_abs_t, t, use_cyclical_time=True)
+    np.testing.assert_array_equal(X[:, :2], time_feats)
+    np.testing.assert_array_equal(X[:, 2 : 2 + len(STATIC_COVARS)], scaled)
+    np.testing.assert_array_equal(X[:, -2], post_intervention)
+    np.testing.assert_array_equal(X[:, -1], t_since_intervention_yrs)
 
 
 # ----------------------- build_timestep_grid -----------------------

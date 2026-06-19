@@ -1,4 +1,5 @@
 import logging
+import math
 import pickle
 import random
 from dataclasses import dataclass, field
@@ -11,19 +12,20 @@ from omegaconf import DictConfig
 from ..common.dataclasses import Predictor
 from ..common.utils import transform_targets_np
 from .features import (
-    AFTER9_COVARS,
+    AFTER_INTERVENTION_COVARS,
+    BURNIN_DAY,
     INTERVENTION_DAY,
     STATIC_COVARS,
-    INPUT_SIZE,
-    BURNIN_DAY,
-    TOTAL_DAYS,
     StandardScaler,
+    get_input_size,
 )
 
 log = logging.getLogger(__name__)
 
-# Precomputed column indices for AFTER9_COVARS within STATIC_COVARS.
-_AFTER9_COL_INDICES = np.array([STATIC_COVARS.index(c) for c in AFTER9_COVARS if c in STATIC_COVARS], dtype=np.intp)
+# Precomputed column indices for AFTER_INTERVENTION_COVARS within STATIC_COVARS.
+_AFTER_INTERVENTION_COL_INDICES = np.array(
+    [STATIC_COVARS.index(c) for c in AFTER_INTERVENTION_COVARS if c in STATIC_COVARS], dtype=np.intp
+)
 
 
 @dataclass
@@ -46,10 +48,10 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
     train/val/test split, fits static covariate scaling on the train split only,
     and builds per-sequence records for each split.
 
-    Note: each malariasimulation run covers 12 years: a 6-year warmup followed by
-    6 years of actual simulation. Only the latter 6 years are used here; the
+    Note: each malariasimulation run covers TOTAL_YEARS years: a BURNIN_DAY's warmup followed by
+    TOTAL_YEARS - BURNIN_DAY years of actual simulation. Only the latter are used here; the
     warmup has already been discarded in the input `df` parameter.
-    The intervention is applied at year 9 (day 9 * 365).
+    The intervention is applied at INTERVENTION_DAY.
 
     Args:
         df: Raw simulation dataframe.
@@ -89,7 +91,7 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
         train_data=train_data,
         val_data=val_data,
         test_data=test_data,
-        input_size=INPUT_SIZE,
+        input_size=get_input_size(cfg.use_cyclical_time),
         scaler=scaler,
         train_param_sims=train_ps,
         val_param_sims=val_ps,
@@ -104,7 +106,8 @@ def build_feature_matrix(
     scaler: StandardScaler,
     *,
     intervention_day: int = INTERVENTION_DAY,
-    after9_indices: np.ndarray = _AFTER9_COL_INDICES,
+    after_intervention_indices: np.ndarray = _AFTER_INTERVENTION_COL_INDICES,
+    use_cyclical_time: bool = True,
 ) -> np.ndarray:
     """
     Assemble the (T, INPUT_SIZE) model input from raw static covars + timesteps.
@@ -117,16 +120,18 @@ def build_feature_matrix(
         t: Relative timestep values (float32, shape T).
         scaler: Fitted static covariate scaler.
         intervention_day: Absolute day the intervention switches on.
-        after9_indices: Column indices to mask before intervention_day.
+        after_intervention_indices: Column indices to mask before intervention_day.
 
     Returns:
         Feature matrix of shape (T, INPUT_SIZE).
     """
-    scaled_static = _build_static_features(base_static, abs_t, scaler, intervention_day, after9_indices)
-    post9, t_since9_yrs = _build_intervention_features(abs_t, intervention_day)
-    time_feats = _build_time_features(t)
+    scaled_static = _build_static_features(base_static, abs_t, scaler, intervention_day, after_intervention_indices)
+    post_intervention, t_since_intervention_yrs = _build_intervention_features(abs_t, intervention_day)
+    time_feats = _build_time_features(abs_t, t, use_cyclical_time=use_cyclical_time)
 
-    return np.concatenate([time_feats, scaled_static, post9[:, None], t_since9_yrs[:, None]], axis=1)
+    return np.concatenate(
+        [time_feats, scaled_static, post_intervention[:, None], t_since_intervention_yrs[:, None]], axis=1
+    )
 
 
 def build_timestep_grid(window_size: int, n_steps: int, burnin_day: int = BURNIN_DAY) -> tuple[np.ndarray, np.ndarray]:
@@ -172,9 +177,9 @@ def build_inference_inputs(
         Model input of shape (B, T, INPUT_SIZE), float32.
     """
     static_names = preprocessing_config["static_covars"]
-    after9 = preprocessing_config["after_intervention"]
-    intervention_day = preprocessing_config["intervention_day"]
-    after9_indices = np.array([static_names.index(c) for c in after9], dtype=np.intp)
+    after_intervention_indices = np.array(
+        [static_names.index(c) for c in preprocessing_config["after_intervention"]], dtype=np.intp
+    )
 
     abs_t, t = build_timestep_grid(
         preprocessing_config["window_size"], preprocessing_config["n_steps"], preprocessing_config["burnin_day"]
@@ -187,7 +192,13 @@ def build_inference_inputs(
         base_static = np.array([covars[name] for name in static_names], dtype=np.float32)
         batch.append(
             build_feature_matrix(
-                base_static, abs_t, t, scaler, intervention_day=intervention_day, after9_indices=after9_indices
+                base_static,
+                abs_t,
+                t,
+                scaler,
+                intervention_day=preprocessing_config["intervention_day"],
+                after_intervention_indices=after_intervention_indices,
+                use_cyclical_time=preprocessing_config["use_cyclical_time"],
             )
         )
     return np.stack(batch, dtype=np.float32)  # (B, T, INPUT_SIZE)
@@ -340,12 +351,12 @@ def _build_static_features(
     abs_t: np.ndarray,
     scaler: StandardScaler,
     intervention_day: int = INTERVENTION_DAY,
-    after9_indices: np.ndarray = _AFTER9_COL_INDICES,
+    after_intervention_indices: np.ndarray = _AFTER_INTERVENTION_COL_INDICES,
 ) -> np.ndarray:
     """
     Build scaled static covariate matrix with pre-intervention masking.
 
-    AFTER9 covars are zeroed before intervention_day because those parameters
+    AFTER_INTERVENTION_COVARS are zeroed before intervention_day because those parameters
     aren't active yet.
 
     Args:
@@ -353,13 +364,13 @@ def _build_static_features(
         abs_t: Absolute timestep values (float32, shape T).
         scaler: Fitted static covariate scaler.
         intervention_day: Absolute day the intervention switches on.
-        after9_indices: Column indices to mask before intervention_day.
+        after_intervention_indices: Column indices to mask before intervention_day.
 
     Returns:
         Scaled static feature matrix of shape (T, len(STATIC_COVARS)).
     """
     masked_static = base_static.copy()
-    masked_static[after9_indices] = 0.0
+    masked_static[after_intervention_indices] = 0.0
     raw_matrix = np.where((abs_t < intervention_day)[:, None], masked_static, base_static)
     return scaler.transform(raw_matrix)
 
@@ -375,29 +386,36 @@ def _build_intervention_features(
         intervention_day: Absolute day the intervention switches on.
 
     Returns:
-        post9: Binary flag, 1 on/after intervention_day (shape T).
-        t_since9_yrs: Years elapsed since intervention_day, 0 before (shape T).
+        post_intervention: Binary flag, 1 on/after intervention_day (shape T).
+        t_since_intervention_yrs: Years elapsed since intervention_day, 0 before (shape T).
     """
-    post9 = (abs_t >= intervention_day).astype(np.float32)
-    t_since9_yrs = (np.maximum(0.0, abs_t - intervention_day) / 365.0).astype(np.float32)
-    return post9, t_since9_yrs
+    post_intervention = (abs_t >= intervention_day).astype(np.float32)
+    t_since_intervention_yrs = (np.maximum(0.0, abs_t - intervention_day) / 365.0).astype(np.float32)
+    return post_intervention, t_since_intervention_yrs
 
 
-def _build_time_features(t: np.ndarray) -> np.ndarray:
+def _build_time_features(abs_t: np.ndarray, t: np.ndarray, use_cyclical_time: bool) -> np.ndarray:
     """
-    Build time feature columns — min-max normalised absolute time.
-    Compute post-intervention flag and time-since-intervention in years.
+    Build time feature columns — either cyclical (sin/cos of day-of-year) or
+    min-max normalised absolute time.
 
     Args:
         abs_t: Absolute timestep values (float32, shape T).
         t: Relative timestep values (float32, shape T).
+        use_cyclical_time: Whether to use cyclical encoding.
 
     Returns:
-        Time feature matrix of shape (T, 1).
+        Time feature matrix of shape (T, 2) for cyclical or (T, 1) for linear.
     """
-    t_min, t_max = t.min(), t.max()
-    t_norm = ((t - t_min) / (t_max - t_min) if t_max > t_min else t).astype(np.float32)
-    return t_norm[:, None]
+    if use_cyclical_time:
+        doy = abs_t % 365.0
+        sin_t = np.sin(2 * math.pi * doy / 365.0).astype(np.float32)
+        cos_t = np.cos(2 * math.pi * doy / 365.0).astype(np.float32)
+        return np.stack([sin_t, cos_t], axis=1)
+    else:
+        t_min, t_max = t.min(), t.max()
+        t_norm = ((t - t_min) / (t_max - t_min) if t_max > t_min else t).astype(np.float32)
+        return t_norm[:, None]
 
 
 def _build_targets(sub: pd.DataFrame, predictor: Predictor, eps_prevalence: float) -> np.ndarray:
@@ -470,7 +488,7 @@ def _build_data(
         t = np.asarray(sub["timesteps"].values, dtype=np.float32)
         base_static = np.asarray(sub.iloc[0][STATIC_COVARS].values, dtype=np.float32)
 
-        X = build_feature_matrix(base_static, abs_t, t, scaler)
+        X = build_feature_matrix(base_static, abs_t, t, scaler, use_cyclical_time=cfg.use_cyclical_time)
         Y = _build_targets(sub, cfg.predictor, cfg.eps_prevalence)
         W = _build_weights(sub, cfg.predictor)
 

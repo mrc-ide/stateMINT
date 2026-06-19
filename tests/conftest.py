@@ -3,10 +3,13 @@ import pandas as pd
 import pytest
 from omegaconf import OmegaConf
 
-from stateMINT.data import AFTER9_COVARS, BURNIN_DAY, INPUT_SIZE, INTERVENTION_DAY, STATIC_COVARS, StandardScaler
+from stateMINT.data import AFTER_INTERVENTION_COVARS, BURNIN_DAY, INTERVENTION_DAY, STATIC_COVARS, StandardScaler
 
 
 INFERENCE_N_STEPS = 157
+INPUT_SIZE = (
+    len(STATIC_COVARS) + 4
+)  # with cyclical time features: 2 time features + static covars + post_intervention, t_since_intervention_yrs
 
 
 @pytest.fixture
@@ -61,6 +64,7 @@ def make_cfg(tmp_path, predictor="prevalence", **overrides):
             "split_file": str(tmp_path / "split.csv"),
             "output_dir": str(tmp_path),
             "eps_prevalence": 1e-5,
+            "use_cyclical_time": True,
         }
     )
     cfg.update(overrides)
@@ -98,8 +102,9 @@ def preprocessing_config_factory():
     def _factory(predictor="prevalence", n_steps=INFERENCE_N_STEPS, **overrides):
         config = {
             "static_covars": STATIC_COVARS,
-            "after_intervention": AFTER9_COVARS,
+            "after_intervention": AFTER_INTERVENTION_COVARS,
             "intervention_day": INTERVENTION_DAY,
+            "use_cyclical_time": True,
             "window_size": 14,
             "n_steps": n_steps,
             "burnin_day": BURNIN_DAY,
@@ -186,7 +191,7 @@ def model_and_optimizer_factory(model_factory):
 @pytest.fixture
 def loader_records_factory():
     def _factory(n, x_shape=(4, 3), include_ps=False):
-        records = [
+        records: list[dict[str, np.ndarray]] = [
             {
                 "x": np.zeros(x_shape, dtype=np.float32),
                 "y": np.zeros(x_shape[0], dtype=np.float32),

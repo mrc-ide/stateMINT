@@ -14,12 +14,25 @@ STATIC_COVARS = [
     "irs_future",
     "lsm",
 ]
-AFTER9_COVARS = ["dn0_future", "itn_future", "irs_future", "lsm", "routine"]
+AFTER_INTERVENTION_COVARS = ["dn0_future", "itn_future", "irs_future", "lsm", "routine"]
 INTERVENTION_DAY = 9 * 365
 BURNIN_DAY = 6 * 365  # 2190 — kept window starts here
 TOTAL_DAYS = 12 * 365  # 6yr warmup + 6yr sim
 
-INPUT_SIZE = 1 + len(STATIC_COVARS) + 2  # time features + static covars + post9, t_since9_yrs
+
+def get_input_size(use_cyclical_time: bool) -> int:
+    """
+    Compute the input size for the model based on time feature encoding.
+
+    Args:
+        use_cyclical_time: Whether to use cyclical encoding for time features.
+    Returns:
+        Input size for the model.
+    """
+    time_features = 2 if use_cyclical_time else 1
+    intervention_features = 2  # post_intervention flag and time_since_intervention
+    static_features = len(STATIC_COVARS)
+    return time_features + static_features + intervention_features
 
 
 class StandardScaler:

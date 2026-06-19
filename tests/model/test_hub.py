@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from stateMINT.data import INPUT_SIZE
+from ..conftest import INPUT_SIZE
 from stateMINT.model.hub import ModelArtifact, _download_from_hf, _load_json, _load_scaler, load_model_artifact
 
 
