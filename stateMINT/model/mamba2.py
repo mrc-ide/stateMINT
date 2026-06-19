@@ -1,13 +1,12 @@
 import flax.nnx as nnx
 import jax
 import jax.numpy as jnp
+import numpy as np
+from mamba2_jax import Mamba2Config, Mamba2Model
 from omegaconf import DictConfig
 
-from mamba2_jax import Mamba2Config, Mamba2Model
-from wandb.util import np
-
-from stateMINT.model.hub import load_model_artifact, ModelArtifact
 from stateMINT.common.dataclasses import Predictor
+from stateMINT.model.hub import ModelArtifact, load_model_artifact
 
 
 class Mamba2Regressor(nnx.Module):
