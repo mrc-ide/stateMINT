@@ -1,4 +1,3 @@
-from .dataset import make_loader
 from .preprocessing import prepare_data
 from .features import (
     STATIC_COVARS,
@@ -11,7 +10,6 @@ from .features import (
 )
 
 __all__ = [
-    "make_loader",
     "prepare_data",
     "STATIC_COVARS",
     "AFTER_INTERVENTION_COVARS",

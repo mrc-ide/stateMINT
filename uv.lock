@@ -1812,31 +1812,45 @@ wheels = [
 
 [[package]]
 name = "statemint"
-version = "0.1.0"
-source = { virtual = "." }
+version = "1.0.0"
+source = { editable = "." }
 dependencies = [
-    { name = "duckdb" },
+    { name = "etils" },
     { name = "flax" },
-    { name = "grain" },
     { name = "huggingface-hub" },
-    { name = "hydra-core" },
     { name = "jax" },
     { name = "jaxtyping" },
     { name = "mamba2-jax" },
     { name = "numpy" },
-    { name = "optax" },
+    { name = "omegaconf" },
     { name = "orbax-checkpoint" },
     { name = "pandas" },
-    { name = "tqdm" },
-    { name = "wandb" },
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "duckdb" },
+    { name = "grain" },
+    { name = "hydra-core" },
+    { name = "jax", extra = ["cuda12"] },
+    { name = "matplotlib" },
+    { name = "optax" },
+    { name = "tqdm" },
+    { name = "wandb" },
+]
 gpu = [
     { name = "jax", extra = ["cuda12"] },
 ]
 plot = [
     { name = "matplotlib" },
+]
+train = [
+    { name = "duckdb" },
+    { name = "grain" },
+    { name = "hydra-core" },
+    { name = "optax" },
+    { name = "tqdm" },
+    { name = "wandb" },
 ]
 
 [package.dev-dependencies]
@@ -1847,24 +1861,27 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "duckdb", specifier = ">=1.5.3" },
+    { name = "duckdb", marker = "extra == 'train'", specifier = ">=1.5.3" },
+    { name = "etils", specifier = ">=1.0" },
     { name = "flax", specifier = ">=0.12.7" },
-    { name = "grain", specifier = ">=0.2.16" },
+    { name = "grain", marker = "extra == 'train'", specifier = ">=0.2.16" },
     { name = "huggingface-hub", specifier = ">=1.19.0" },
-    { name = "hydra-core", specifier = ">=1.3.2" },
+    { name = "hydra-core", marker = "extra == 'train'", specifier = ">=1.3.2" },
     { name = "jax", specifier = ">=0.10.1" },
     { name = "jax", extras = ["cuda12"], marker = "extra == 'gpu'", specifier = ">=0.10.1" },
     { name = "jaxtyping", specifier = ">=0.3.10" },
     { name = "mamba2-jax", specifier = ">=1.0.1" },
     { name = "matplotlib", marker = "extra == 'plot'", specifier = ">=3.10.9" },
     { name = "numpy", specifier = ">=2.4.6" },
-    { name = "optax", specifier = ">=0.2.8" },
+    { name = "omegaconf", specifier = ">=2.3" },
+    { name = "optax", marker = "extra == 'train'", specifier = ">=0.2.8" },
     { name = "orbax-checkpoint", specifier = ">=0.12.0" },
     { name = "pandas", specifier = ">=3.0.3" },
-    { name = "tqdm", specifier = ">=4.67.3" },
-    { name = "wandb", specifier = ">=0.27.0" },
+    { name = "statemint", extras = ["train", "plot", "gpu"], marker = "extra == 'all'" },
+    { name = "tqdm", marker = "extra == 'train'", specifier = ">=4.67.3" },
+    { name = "wandb", marker = "extra == 'train'", specifier = ">=0.27.0" },
 ]
-provides-extras = ["gpu", "plot"]
+provides-extras = ["train", "plot", "gpu", "all"]
 
 [package.metadata.requires-dev]
 dev = [

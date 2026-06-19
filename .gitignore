@@ -122,6 +122,7 @@ cython_debug/
 
 # testing scripts
 *.ipynb
+x.py
 
 # hydra logs
 outputs

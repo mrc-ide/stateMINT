@@ -13,7 +13,8 @@ from tqdm import tqdm
 import wandb
 from stateMINT.model.mamba2 import get_total_params
 
-from .data import make_loader, prepare_data
+from .data.dataset import make_loader
+from .data.preprocessing import prepare_data
 from .eval.metrics import compute_metrics
 from .model import Mamba2Regressor
 from .training.checkpoint import checkpoint_session, init_or_restore_last
