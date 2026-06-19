@@ -1,7 +1,6 @@
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from flax import nnx
 
 from stateMINT.eval import metrics as M
 from stateMINT.data.dataset import make_loader
@@ -26,20 +25,10 @@ def test_basic_metric_values():
     assert float(M.bias(preds, targets)) == 3.0
 
 
-def test_compute_metrics_over_loader(tiny_model_kwargs):
-    from stateMINT.model import Mamba2Regressor
-
-    model = Mamba2Regressor(input_dim=3, rngs=nnx.Rngs(0), **tiny_model_kwargs)
+def test_compute_metrics_over_loader(model_factory, loader_records_factory):
+    model = model_factory()
     model.eval()
-    data = [
-        {
-            "x": np.zeros((4, 3), dtype=np.float32),
-            "y": np.zeros(4, dtype=np.float32),
-            "ps": np.zeros((4, 2), dtype=np.int32),
-        }
-        for _ in range(4)
-    ]
-    loader = make_loader(data, batch_size=2)
+    loader = make_loader(loader_records_factory(4, include_ps=True), batch_size=2)
     out = M.compute_metrics(model, loader, "prevalence")
     assert set(out) == {"mse", "rmse", "mae", "r2", "smape", "bias"}
     assert all(isinstance(v, float) for v in out.values())

@@ -2,27 +2,12 @@ import duckdb
 import numpy as np
 import pytest
 
+from stateMINT.data import STATIC_COVARS
 from stateMINT.data.fetch import save_fetched_filtered_data
 
 
 def _read_parquet(path):
     return duckdb.read_parquet(str(path)).df()
-
-
-STATIC = [
-    "eir",
-    "dn0_use",
-    "dn0_future",
-    "Q0",
-    "phi_bednets",
-    "seasonal",
-    "routine",
-    "itn_use",
-    "irs_use",
-    "itn_future",
-    "irs_future",
-    "lsm",
-]
 
 
 def _make_db(db_path, n_days=400):
@@ -40,7 +25,7 @@ def _make_db(db_path, n_days=400):
                 "n_age_0_1825": 10.0,
                 "n_inc_clinical_0_36500": 3.0,
                 "n_age_0_36500": 100.0,
-                **{c: 0.5 for c in STATIC},
+                **{c: 0.5 for c in STATIC_COVARS},
             }
         )
     con = duckdb.connect(str(db_path))
@@ -123,7 +108,7 @@ def test_prevalence_fetch_filters_burnin_and_windows(tmp_path):
     np.testing.assert_allclose(np.asarray(out["prevalence"], dtype=float), 0.5)
     # timesteps re-indexed sequentially from 1 per sim
     assert out["timesteps"].min() == 1
-    assert set(STATIC).issubset(out.columns)
+    assert set(STATIC_COVARS).issubset(out.columns)
 
 
 def test_cases_fetch_outputs_exposure(tmp_path):
@@ -142,7 +127,6 @@ def test_cases_fetch_outputs_exposure(tmp_path):
 def test_param_and_sim_limits(tmp_path):
     db = tmp_path / "sim.duckdb"
     _make_db(db)
-    # param_limit=0 keeps no parameters (parameter_index < 0 is empty)
     save_fetched_filtered_data(
         str(db), "simulation_results", param_limit=1, predictor="prevalence", output_folder=str(tmp_path)
     )

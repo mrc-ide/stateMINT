@@ -1,9 +1,11 @@
 import numpy as np
-import pandas as pd
 import pytest
 
 from stateMINT.data.preprocessing import (
     prepare_data,
+    build_feature_matrix,
+    build_timestep_grid,
+    build_inference_inputs,
     _AFTER9_COL_INDICES,
     _build_static_features,
     _build_intervention_features,
@@ -11,7 +13,14 @@ from stateMINT.data.preprocessing import (
     _build_targets,
     _build_weights,
 )
-from stateMINT.data import STATIC_COVARS, INTERVENTION_DAY, INPUT_SIZE, StandardScaler
+from stateMINT.data import (
+    STATIC_COVARS,
+    INTERVENTION_DAY,
+    BURNIN_DAY,
+    TOTAL_DAYS,
+    INPUT_SIZE,
+    StandardScaler,
+)
 
 
 # ----------------------- StandardScaler -----------------------
@@ -88,73 +97,36 @@ def test_threshold_filters_out_low_pairs(sample_df, cfg_factory):
 
 # ----------------------- _build_* helpers -----------------------
 
-# Fixtures shared across helper tests
-
-
-@pytest.fixture
-def straddling_abs_t():
-    """Four timesteps: 2 before, 1 at, 1 after INTERVENTION_DAY."""
-    return np.array(
-        [INTERVENTION_DAY - 10, INTERVENTION_DAY - 5, INTERVENTION_DAY, INTERVENTION_DAY + 10],
-        dtype=np.float32,
-    )
-
-
-@pytest.fixture
-def simple_sub(straddling_abs_t):
-    T = len(straddling_abs_t)
-    rng = np.random.default_rng(42)
-    data: dict = {
-        "timesteps": list(range(1, T + 1)),
-        "abs_timesteps": straddling_abs_t.tolist(),
-        "prevalence": [0.1, 0.2, 0.3, 0.4],
-        "cases": [5.0, 10.0, 15.0, 20.0],
-        "exposure_pd": [100.0, 200.0, 300.0, 400.0],
-    }
-    for c in STATIC_COVARS:
-        data[c] = [float(rng.uniform(0.1, 1.0))] * T
-    return pd.DataFrame(data)
-
-
-@pytest.fixture
-def identity_scaler():
-    """Scaler with mean=0, scale=1 so transform is a no-op."""
-    scaler = StandardScaler()
-    scaler.mean_ = np.zeros(len(STATIC_COVARS), dtype=np.float32)
-    scaler.scale_ = np.ones(len(STATIC_COVARS), dtype=np.float32)
-    return scaler
-
-
 # _build_static_features
 
 
-def test_build_static_features_shape(simple_sub, straddling_abs_t, identity_scaler):
-    out = _build_static_features(simple_sub, straddling_abs_t, identity_scaler)
+def test_build_static_features_shape(base_static, straddling_abs_t, identity_scaler):
+    out = _build_static_features(base_static, straddling_abs_t, identity_scaler)
     assert out.shape == (len(straddling_abs_t), len(STATIC_COVARS))
 
 
-def test_build_static_features_pre_intervention_after9_zeroed(simple_sub, straddling_abs_t, identity_scaler):
-    out = _build_static_features(simple_sub, straddling_abs_t, identity_scaler)
+def test_build_static_features_pre_intervention_after9_zeroed(base_static, straddling_abs_t, identity_scaler):
+    out = _build_static_features(base_static, straddling_abs_t, identity_scaler)
     pre_mask = straddling_abs_t < INTERVENTION_DAY
     # With identity scaler, zeroed raw values pass through as 0.0.
     np.testing.assert_array_equal(out[pre_mask][:, _AFTER9_COL_INDICES], 0.0)
 
 
-def test_build_static_features_post_intervention_after9_nonzero(simple_sub, straddling_abs_t, identity_scaler):
-    out = _build_static_features(simple_sub, straddling_abs_t, identity_scaler)
+def test_build_static_features_post_intervention_after9_nonzero(base_static, straddling_abs_t, identity_scaler):
+    out = _build_static_features(base_static, straddling_abs_t, identity_scaler)
     post_mask = straddling_abs_t >= INTERVENTION_DAY
     # Static values are in [0.1, 1.0] so post-intervention AFTER9 columns must be non-zero.
     assert np.all(out[post_mask][:, _AFTER9_COL_INDICES] != 0.0)
 
 
-def test_build_static_features_scaler_applied(simple_sub, straddling_abs_t):
+def test_build_static_features_scaler_applied(base_static, straddling_abs_t):
     rng = np.random.default_rng(99)
     X_train = rng.uniform(0, 1, (20, len(STATIC_COVARS))).astype(np.float32)
     scaler = StandardScaler().fit(X_train)
-    out = _build_static_features(simple_sub, straddling_abs_t, scaler)
+    out = _build_static_features(base_static, straddling_abs_t, scaler)
     # Rows on/after intervention day should equal scaler.transform of the raw static row.
     post_mask = straddling_abs_t >= INTERVENTION_DAY
-    raw = np.tile(simple_sub.iloc[0][STATIC_COVARS].values.astype(np.float32), (post_mask.sum(), 1))
+    raw = np.tile(base_static, (post_mask.sum(), 1))
     np.testing.assert_allclose(out[post_mask], scaler.transform(raw), rtol=1e-6)
 
 
@@ -238,3 +210,76 @@ def test_build_weights_prevalence_ones(simple_sub):
 def test_build_weights_cases_equals_exposure(simple_sub):
     w = _build_weights(simple_sub, "cases")
     np.testing.assert_array_equal(w, simple_sub["exposure_pd"].values.astype(np.float32))
+
+
+# ----------------------- build_feature_matrix -----------------------
+
+
+def test_build_feature_matrix_shape(base_static, straddling_abs_t, identity_scaler):
+    t = np.arange(1, len(straddling_abs_t) + 1, dtype=np.float32)
+    X = build_feature_matrix(base_static, straddling_abs_t, t, identity_scaler)
+    assert X.shape == (len(straddling_abs_t), INPUT_SIZE)
+
+
+def test_build_feature_matrix_column_layout(base_static, straddling_abs_t, identity_scaler):
+    # Columns are [time(1), static(len), post9(1), t_since9(1)] in that order.
+    t = np.arange(1, len(straddling_abs_t) + 1, dtype=np.float32)
+    X = build_feature_matrix(base_static, straddling_abs_t, t, identity_scaler)
+
+    scaled = _build_static_features(base_static, straddling_abs_t, identity_scaler)
+    post9, t_since9 = _build_intervention_features(straddling_abs_t)
+    np.testing.assert_array_equal(X[:, 0], _build_time_features(t).squeeze(1))
+    np.testing.assert_array_equal(X[:, 1 : 1 + len(STATIC_COVARS)], scaled)
+    np.testing.assert_array_equal(X[:, -2], post9)
+    np.testing.assert_array_equal(X[:, -1], t_since9)
+
+
+# ----------------------- build_timestep_grid -----------------------
+
+
+def test_build_timestep_grid_shapes_and_step():
+    abs_t, t = build_timestep_grid(window_size=14, n_steps=157, burnin_day=BURNIN_DAY)
+    assert abs_t.shape == (157,) and t.shape == (157,)
+    assert abs_t[0] == BURNIN_DAY
+    np.testing.assert_array_equal(np.diff(abs_t), 14.0)
+    np.testing.assert_array_equal(t, np.arange(1, 158, dtype=np.float32))
+
+
+def test_build_timestep_grid_matches_export_window_count():
+    # 14-day windows over the kept simulation span give the 157 steps the export records.
+    n_steps = (TOTAL_DAYS - BURNIN_DAY) // 14 + 1
+    abs_t, _ = build_timestep_grid(14, n_steps)
+    assert len(abs_t) == 157
+    assert abs_t[-1] <= TOTAL_DAYS
+
+
+# ----------------------- build_inference_inputs -----------------------
+
+
+def test_build_inference_inputs_shape_and_dtype(static_covar_dicts, identity_scaler, preprocessing_config):
+    X = build_inference_inputs(static_covar_dicts, identity_scaler, preprocessing_config)
+    assert X.shape == (3, 157, INPUT_SIZE)
+    assert X.dtype == np.float32
+
+
+def test_build_inference_inputs_matches_build_feature_matrix(static_covar_dicts, identity_scaler, preprocessing_config):
+    # Each batch row must equal a direct build_feature_matrix call on the same covars.
+    X = build_inference_inputs(static_covar_dicts, identity_scaler, preprocessing_config)
+    abs_t, t = build_timestep_grid(14, 157, BURNIN_DAY)
+    base_static = np.array([static_covar_dicts[0][c] for c in STATIC_COVARS], dtype=np.float32)
+    expected = build_feature_matrix(base_static, abs_t, t, identity_scaler)
+    np.testing.assert_allclose(X[0], expected, rtol=1e-6)
+
+
+def test_build_inference_inputs_respects_covar_order(identity_scaler, preprocessing_config):
+    # Inputs are gathered by name, so dict key order should not matter.
+    ordered = {c: float(i) for i, c in enumerate(STATIC_COVARS)}
+    shuffled = dict(reversed(list(ordered.items())))
+    X = build_inference_inputs([ordered, shuffled], identity_scaler, preprocessing_config)
+    np.testing.assert_array_equal(X[0], X[1])
+
+
+def test_build_inference_inputs_missing_covar_raises(identity_scaler, preprocessing_config):
+    incomplete = [{c: 0.5 for c in STATIC_COVARS if c != "eir"}]
+    with pytest.raises(ValueError, match="Missing static covariates"):
+        build_inference_inputs(incomplete, identity_scaler, preprocessing_config)

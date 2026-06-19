@@ -5,7 +5,7 @@ eps_prevalence: 1.0e-5
 scaler_file: train_outputs/${predictor}/static_scaler.pkl
 window_size: 14
 
-# Model - ensure these match the checkpointed model's hyperparameters
+# Model - ensure these match the checkpointed model's parameters
 n_layers: 4
 d_conv: 4
 expand: 2

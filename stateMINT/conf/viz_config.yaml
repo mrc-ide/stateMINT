@@ -22,7 +22,7 @@ d_state: 64
 dropout: 0.15
 
 # Checkpointing
-checkpoint_dir: "train_outputs/prevalence/ckpts-2026-06-17T11:36:28"
+checkpoint_dir: ???
 
 # General
 seed: 42

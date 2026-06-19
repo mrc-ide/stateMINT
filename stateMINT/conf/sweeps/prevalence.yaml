@@ -21,7 +21,7 @@ parameters:
     min: 0.25
     max: 0.5
   batch_size:
-    values: [64, 128]
+    values: [128]
 
   # model-specific
   d_state:
@@ -40,5 +40,5 @@ command:
   - ${args_no_hyphens}
   - target=prevalence
   - use_wandb=true
-  - num_epochs=200
-  - patience=50
+  - num_epochs=300
+  - patience=100

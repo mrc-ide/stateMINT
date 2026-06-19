@@ -129,6 +129,70 @@ def build_feature_matrix(
     return np.concatenate([time_feats, scaled_static, post9[:, None], t_since9_yrs[:, None]], axis=1)
 
 
+def build_timestep_grid(window_size: int, n_steps: int, burnin_day: int = BURNIN_DAY) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Regenerate the (abs_t, t) grid the fetch/windowing step produces.
+
+    Mirrors fetch.py: group_id = floor((abs - burnin) / window_size), and per group
+    abs_timesteps = min(abs) = burnin_day + group_id * window_size, with timesteps the
+    1-based row number.
+
+    Args:
+        window_size: Days aggregated per timestep.
+        n_steps: Number of timesteps (sequence length).
+        burnin_day: Absolute day the kept window starts.
+
+    Returns:
+        abs_t: Absolute timesteps (float32, shape n_steps).
+        t: Relative timesteps 1..n_steps (float32, shape n_steps).
+    """
+    abs_t = np.arange(burnin_day, burnin_day + window_size * n_steps, window_size, dtype=np.float32)
+    t = np.arange(1, n_steps + 1, dtype=np.float32)
+    return abs_t, t
+
+
+def build_inference_inputs(
+    static_covars: list[dict[str, float]],
+    scaler: StandardScaler,
+    preprocessing_config: dict,
+) -> np.ndarray:
+    """
+    Build a batched model input from raw static covariate dicts.
+
+    The user supplies only the static covariates; the timestep grid, intervention
+    masking, and scaling are reconstructed from preprocessing_config (the exported
+    sidecar), so this exactly matches train-time preprocessing.
+
+    Args:
+        static_covars: One dict per series, keyed by STATIC_COVARS names.
+        scaler: Fitted static covariate scaler.
+        preprocessing_config: Exported preprocessing_config.json contents.
+
+    Returns:
+        Model input of shape (B, T, INPUT_SIZE), float32.
+    """
+    static_names = preprocessing_config["static_covars"]
+    after9 = preprocessing_config["after_intervention"]
+    intervention_day = preprocessing_config["intervention_day"]
+    after9_indices = np.array([static_names.index(c) for c in after9], dtype=np.intp)
+
+    abs_t, t = build_timestep_grid(
+        preprocessing_config["window_size"], preprocessing_config["n_steps"], preprocessing_config["burnin_day"]
+    )
+    batch = []
+    for covars in static_covars:
+        missing = [c for c in static_names if c not in covars]
+        if missing:
+            raise ValueError(f"Missing static covariates: {missing}")
+        base_static = np.array([covars[name] for name in static_names], dtype=np.float32)
+        batch.append(
+            build_feature_matrix(
+                base_static, abs_t, t, scaler, intervention_day=intervention_day, after9_indices=after9_indices
+            )
+        )
+    return np.stack(batch, dtype=np.float32)  # (B, T, INPUT_SIZE)
+
+
 # -------------- internal helpers ----------------------------------------------------------
 
 
@@ -404,12 +468,9 @@ def _build_data(
 
         abs_t = np.asarray(sub["abs_timesteps"].values, dtype=np.float32)
         t = np.asarray(sub["timesteps"].values, dtype=np.float32)
+        base_static = np.asarray(sub.iloc[0][STATIC_COVARS].values, dtype=np.float32)
 
-        scaled_static = _build_static_features(sub, abs_t, scaler)
-        post9, t_since9_yrs = _build_intervention_features(abs_t)
-        time_feats = _build_time_features(t)
-
-        X = np.concatenate([time_feats, scaled_static, post9[:, None], t_since9_yrs[:, None]], axis=1)
+        X = build_feature_matrix(base_static, abs_t, t, scaler)
         Y = _build_targets(sub, cfg.predictor, cfg.eps_prevalence)
         W = _build_weights(sub, cfg.predictor)
 

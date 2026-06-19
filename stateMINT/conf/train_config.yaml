@@ -17,8 +17,8 @@ expand: 2
 head_dim: 64
 chunk_size: 256
 output_dim: 1
-d_model: 128
-d_state: 64
+d_model: 256
+d_state: 128
 
 # Hyperparameters
 num_epochs: 200
@@ -27,7 +27,7 @@ patience: 50
 diff_loss_alpha: 0.05
 lr: 1e-3
 batch_size: 128
-dropout: 0.15
+dropout: 0.3
 weight_decay: 1e-4
 
 # Checkpointing

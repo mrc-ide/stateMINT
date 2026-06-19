@@ -2,9 +2,11 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from stateMINT.data import INPUT_SIZE
 from stateMINT.model.hub import ModelArtifact, _download_from_hf, _load_json, _load_scaler, load_model_artifact
 
 
@@ -153,3 +155,42 @@ def test_load_model_artifact_missing_scaler_key(artifact_dir, mock_model_cls):
         pytest.raises(KeyError),
     ):
         load_model_artifact(str(artifact_dir), "prevalence", model_cls=mock_model_cls)
+
+
+# --- ModelArtifact.prepare_inputs / predict ---
+
+
+def test_prepare_inputs_shape(model_artifact_factory, static_covar_dicts):
+    artifact = model_artifact_factory(n_steps=10)
+    X = artifact.prepare_inputs(static_covar_dicts[:2])
+    assert X.shape == (2, 10, INPUT_SIZE)
+    assert X.dtype == np.float32
+
+
+def test_predict_applies_inverse_transform(model_artifact_factory, static_covar_dicts):
+    artifact = model_artifact_factory("prevalence", n_steps=10)
+    transformed = jnp.zeros((2, 10))  # logit 0 -> sigmoid -> 0.5
+    with patch("stateMINT.model.hub.forward", return_value=transformed) as mock_forward:
+        preds = artifact.predict(static_covar_dicts[:2])
+
+    mock_forward.assert_called_once()
+    assert preds.shape == (2, 10) and preds.dtype == np.float32
+    np.testing.assert_allclose(preds, 0.5, atol=1e-6)
+
+
+def test_predict_transformed_skips_inverse(model_artifact_factory, static_covar_dicts):
+    artifact = model_artifact_factory("prevalence", n_steps=10)
+    transformed = jnp.full((2, 10), 0.7)
+    with patch("stateMINT.model.hub.forward", return_value=transformed):
+        preds = artifact.predict(static_covar_dicts[:2], transformed=True)
+
+    np.testing.assert_allclose(preds, 0.7, atol=1e-6)
+
+
+def test_predict_cases_uses_expm1(model_artifact_factory, static_covar_dicts):
+    artifact = model_artifact_factory("cases", n_steps=10)
+    transformed = jnp.full((2, 10), float(np.log1p(3.0)))  # expm1 -> 3.0
+    with patch("stateMINT.model.hub.forward", return_value=transformed):
+        preds = artifact.predict(static_covar_dicts[:2])
+
+    np.testing.assert_allclose(preds, 3.0, rtol=1e-5)
