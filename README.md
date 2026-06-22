@@ -7,10 +7,27 @@ static scenario covariates and intervention timing features. It supersedes the
 earlier
 [`MINTelligence`](https://github.com/CosmoNaught/MINTelligence) RNN emulator.
 
-## What StateMINT Provides
+## Contents
+
+- [Features](#features)
+- [Installation](#installation)
+  - [From PyPI](#from-pypi-recommended)
+  - [From GitHub](#from-github-latest-unreleased)
+  - [For development](#for-development-from-source)
+- [Quick Start: Inference](#quick-start-inference)
+- [Static Covariates](#static-covariates)
+- [Training Workflow](#training-workflow)
+- [Configuration](#configuration)
+- [Development](#development)
+- [Repository Layout](#repository-layout)
+- [Contributing](#contributing)
+
+## Features
 
 - Mamba2-based sequence regressors for malaria prevalence and case-count
   trajectories.
+- A lightweight inference path: load an exported artifact and call `predict`
+  with only the runtime dependencies installed.
 - Data extraction utilities for aggregating raw `malariasimulation` DuckDB
   outputs into model-ready parquet files.
 - Preprocessing with target transforms, covariate scaling, and
@@ -20,22 +37,62 @@ earlier
 
 ## Installation
 
-StateMINT requires Python 3.12 or newer and uses
-[`uv`](https://github.com/astral-sh/uv).
+StateMINT requires **Python 3.12 or newer**.
+
+> **Naming:** the package installs as **`mintstate`** (the name `statemint` was
+> already taken on PyPI) but is **imported as `stateMINT`** — e.g.
+> `pip install mintstate` then `from stateMINT.model import Mamba2Regressor`.
+
+### From PyPI (recommended)
+
+The base install contains only what is needed for **inference** — loading an
+exported artifact and predicting:
+
+```bash
+pip install mintstate
+```
+
+Optional extras add heavier, task-specific dependencies. Install only what you
+need:
+
+| Extra    | Command                           | Adds                                     |
+| -------- | --------------------------------- | ---------------------------------------- |
+| *(base)* | `pip install mintstate`           | Inference: `from_pretrained`, `predict`  |
+| `gpu`    | `pip install "mintstate[gpu]"`    | CUDA 12 JAX wheels (Linux x86_64)        |
+| `train`  | `pip install "mintstate[train]"`  | Data fetch, training, export, and sweeps |
+| `plot`   | `pip install "mintstate[plot]"`   | Prediction/target visualization          |
+| `all`    | `pip install "mintstate[all]"`    | Everything above                         |
+
+Extras can be combined, e.g. `pip install "mintstate[train,plot]"`.
+
+### From GitHub (latest, unreleased)
+
+To install the latest commit (or a specific branch/tag) straight from source
+without cloning:
+
+```bash
+# latest on the default branch
+pip install "git+https://github.com/mrc-ide/stateMINT.git"
+
+# a specific branch or tag, with an extra
+pip install "mintstate[gpu] @ git+https://github.com/mrc-ide/stateMINT.git@v1.0.0"
+```
+
+> Building from GitHub requires Python 3.12+. If `pip` resolves to an older
+> interpreter you will see `No matching distribution found`; invoke it
+> explicitly as `python3.12 -m pip ...`.
+
+### For development (from source)
+
+The development workflow uses [`uv`](https://github.com/astral-sh/uv):
 
 ```bash
 git clone https://github.com/mrc-ide/stateMINT.git
 cd stateMINT
-uv sync
-```
-
-For development dependencies and optional extras:
-
-```bash
 uv sync --all-extras --dev
 ```
 
-Or install extras individually:
+Or install a subset of extras:
 
 ```bash
 uv sync --extra plot
@@ -129,6 +186,10 @@ Artifacts include the fitted static scaler, timestep grid, intervention day,
 target transform, and other preprocessing metadata needed for inference.
 
 ## Training Workflow
+
+> The commands below require the `train` (and optionally `plot`) extras, or a
+> development install: `pip install "mintstate[train,plot]"` or
+> `uv sync --all-extras --dev`.
 
 Typical workflow:
 
