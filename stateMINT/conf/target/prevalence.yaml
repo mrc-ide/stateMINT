@@ -7,6 +7,7 @@ min_prevalence: 0.01
 ylabel: "Prevalence"
 
 # Model
+n_layers: 4
 d_model: 256
 d_state: 128
 dropout: 0.4

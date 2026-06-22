@@ -294,6 +294,7 @@ Skip slow or local-only tests:
 ```bash
 uv run pytest tests/ -m "not slow"
 uv run pytest tests/ -m "not local"
+uv run pytest tests/ -m "not slow and not local" # skip both
 ```
 
 Run linting and formatting:

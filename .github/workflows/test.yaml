@@ -25,4 +25,4 @@ jobs:
       - name: Install the project
         run: uv sync --locked --all-extras --dev
       - name: Run tests
-        run: uv run pytest -m "not local"
+        run: uv run pytest -m "not local and not slow"

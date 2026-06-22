@@ -1,6 +1,6 @@
 [project]
-name = "stateMINT"
-version = "1.0.0"
+name = "mintstate"
+dynamic = ["version"]
 description = "StateMINT is a state space based neural network emulator for malariasimulation."
 authors = [{ name = "Anmol Thapar", email = "mr.anmolthapar@gmail.com" }]
 readme = "README.md"
@@ -30,7 +30,7 @@ train = [
 ]
 plot = ["matplotlib>=3.10.9"]
 gpu  = ["jax[cuda12]>=0.10.1"]
-all  = ["stateMINT[train,plot,gpu]"]
+all  = ["mintstate[train,plot,gpu]"]
 
 [project.urls]
 Homepage   = "https://github.com/mrc-ide/stateMINT"
@@ -38,8 +38,11 @@ Repository = "https://github.com/mrc-ide/stateMINT"
 Weights = "https://huggingface.co/dide-ic/stateMINT"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["stateMINT"]
