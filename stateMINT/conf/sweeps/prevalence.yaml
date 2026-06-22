@@ -14,11 +14,11 @@ metric:
 parameters:
   lr:
     distribution: log_uniform_values
-    min: 0.0001
+    min: 0.00009
     max: 0.001
   dropout:
     distribution: uniform
-    min: 0.25
+    min: 0.2
     max: 0.6
   batch_size:
     values: [128]
@@ -29,7 +29,7 @@ parameters:
   d_model:
     values: [256]
   n_layers:
-    values: [1, 2, 3, 4]
+    values: [1, 2]
 
 
 command:
