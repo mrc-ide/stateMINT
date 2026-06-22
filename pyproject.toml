@@ -28,7 +28,7 @@ train = [
     "tqdm>=4.67.3",
     "wandb>=0.27.0",
 ]
-plot = ["matplotlib>=3.10.9"]
+plot = ["matplotlib>=3.10.9", "tqdm>=4.67.3"]
 gpu  = ["jax[cuda12]>=0.10.1"]
 all  = ["mintstate[train,plot,gpu]"]
 

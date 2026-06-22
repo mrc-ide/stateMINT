@@ -7,7 +7,7 @@ outlines the development workflow and contribution standards.
 
 All contributions must meet the following requirements:
 
-- **Tests**: All tests must pass (`uv run pytest test/`)
+- **Tests**: All tests must pass (`uv run pytest tests/`)
 - **Formatting and Linting**: Code must pass formatting and linting checks (`uv run ruff format && uv run ruff check`)
 
 ## Standard Contribution Process
