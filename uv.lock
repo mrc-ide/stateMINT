@@ -782,7 +782,7 @@ wheels = [
 
 [[package]]
 name = "mamba2-jax"
-version = "1.0.1"
+version = "1.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flax" },
@@ -790,9 +790,9 @@ dependencies = [
     { name = "jaxlib" },
     { name = "optax" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1e/12/c70cce802e3f51ae4d1a1d010e73f7733331599fd00077979f035efcd5ce/mamba2_jax-1.0.1.tar.gz", hash = "sha256:7b0e72b967f01e4447f71653850207709d0be712f4001792156d74d5845b1067", size = 24042, upload-time = "2026-02-21T01:13:14.795Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/16/814d3f52e98eeafe5f13d1dfbdf629eac5863b8d00abc277870b6e5cc58f/mamba2_jax-1.1.1.tar.gz", hash = "sha256:181ed0ee5d626ae2d63ceb307e0e5106d78269cc2f017e73116fc70d25f52420", size = 24726, upload-time = "2026-06-22T15:51:36.813Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/a4/88e50b5804133707b9d8039becb31337cd0d8f825b97c8ffad3b0337634d/mamba2_jax-1.0.1-py3-none-any.whl", hash = "sha256:1ce7ecd5581aadf706d41796f56896d03c470966a33df6827998e7e1211dcf84", size = 19713, upload-time = "2026-02-21T01:13:13.535Z" },
+    { url = "https://files.pythonhosted.org/packages/79/60/9ce1591b0a060352eb50f3cc42c0646f9df467812512e3fec7c2be10e7b6/mamba2_jax-1.1.1-py3-none-any.whl", hash = "sha256:6debe0b5890fdc95ce784124c4512f09eace91f0086d63225918cd1fcd272b2b", size = 19864, upload-time = "2026-06-22T15:51:35.691Z" },
 ]
 
 [[package]]
@@ -933,7 +933,7 @@ requires-dist = [
     { name = "jax", extras = ["cuda12"], marker = "extra == 'all'", specifier = ">=0.10.1" },
     { name = "jax", extras = ["cuda12"], marker = "extra == 'gpu'", specifier = ">=0.10.1" },
     { name = "jaxtyping", specifier = ">=0.3.10" },
-    { name = "mamba2-jax", specifier = ">=1.0.1" },
+    { name = "mamba2-jax", specifier = ">=1.1.1" },
     { name = "matplotlib", marker = "extra == 'all'", specifier = ">=3.10.9" },
     { name = "matplotlib", marker = "extra == 'plot'", specifier = ">=3.10.9" },
     { name = "numpy", specifier = ">=2.4.6" },

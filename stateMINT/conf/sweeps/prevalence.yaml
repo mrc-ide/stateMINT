@@ -18,8 +18,8 @@ parameters:
     max: 0.001
   dropout:
     distribution: uniform
-    min: 0.2
-    max: 0.6
+    min: 0.05
+    max: 0.3
   batch_size:
     values: [128]
 
@@ -29,7 +29,7 @@ parameters:
   d_model:
     values: [256]
   n_layers:
-    values: [1, 2]
+    values: [2]
 
 
 command:

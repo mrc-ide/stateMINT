@@ -15,7 +15,7 @@ dependencies = [
     "huggingface-hub>=1.19.0",
     "orbax-checkpoint>=0.12.0",
     "etils>=1.0",
-    "mamba2-jax>=1.0.1",
+    "mamba2-jax>=1.1.1",
     "pandas>=3.0.3",
 ]
 

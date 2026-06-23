@@ -1,5 +1,8 @@
 # StateMINT
 
+[![PyPI](https://img.shields.io/pypi/v/mintstate)](https://pypi.org/project/mintstate/)
+
+
 StateMINT is a JAX/Flax neural emulator for
 [`malariasimulation`](https://github.com/mrc-ide/malariasimulation) outputs. It
 uses a Mamba2 state-space sequence model to predict malaria trajectories from
