@@ -48,8 +48,8 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
     train/val/test split, fits static covariate scaling on the train split only,
     and builds per-sequence records for each split.
 
-    Note: each malariasimulation run covers TOTAL_YEARS years: a BURNIN_DAY's warmup followed by
-    TOTAL_YEARS - BURNIN_DAY years of actual simulation. Only the latter are used here; the
+    Note: each malariasimulation run covers TOTAL_DAYS days: a BURNIN_DAY's warmup followed by
+    TOTAL_DAYS - BURNIN_DAY days of actual simulation. Only the latter are used here; the
     warmup has already been discarded in the input `df` parameter.
     The intervention is applied at INTERVENTION_DAY.
 

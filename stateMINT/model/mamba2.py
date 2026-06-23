@@ -73,7 +73,6 @@ class Mamba2Regressor(nnx.Module):
         self.dropout = nnx.Dropout(dropout, rngs=rngs)
         self.output_proj = nnx.Linear(d_model, output_dim, rngs=rngs)  # TODO: maybe more layers here?
 
-    # TODO: maybe make bidirectional?
     @jax.named_scope("Mamba2Regressor")
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """
@@ -145,7 +144,7 @@ class Mamba2Regressor(nnx.Module):
             return_artifact: If True, return a ModelArtifact dataclass instead of just the model.
 
         Returns:
-            Mamba2Regressor or ModelArtifact depending on return_artifact.
+            ModelArtifact containing the loaded model and its config.
         """
         return load_model_artifact(
             path_or_repo_id,

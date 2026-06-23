@@ -4,7 +4,7 @@ defaults:
 
 # Data
 data_file: "data/filtered_data_${predictor}.parquet"
-split_file: "data/split_${predictor}.json"
+split_file: "data/split_${predictor}.csv"
 num_workers: 0
 use_existing_split: false
 eps_prevalence: 1.0e-5

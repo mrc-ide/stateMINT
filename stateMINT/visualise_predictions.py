@@ -43,7 +43,7 @@ def main(cfg: DictConfig) -> None:
         model = restore_model(ckptr, model)
         model.eval()
         preds, targets, ps = get_preds_targets(model, test_loader)
-        print(f"Predictions shape: {preds.shape}, Targets shape: {targets.shape}, Ps shape: {ps.shape}")
+        log.info("Predictions shape: %s, Targets shape: %s, Ps shape: %s", preds.shape, targets.shape, ps.shape)
         plot_preds_targets(
             preds, targets, ps, cfg.plot_file, window_size=cfg.window_size, predictor=cfg.predictor, ylabel=cfg.ylabel
         )

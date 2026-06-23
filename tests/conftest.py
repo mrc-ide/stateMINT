@@ -53,6 +53,32 @@ def sample_df():
     return pd.DataFrame(rows)
 
 
+@pytest.fixture
+def script_sample_df():
+    """Larger synthetic dataset (8 param groups) so train/val/test splits are all non-empty."""
+    rows = []
+    rng = np.random.default_rng(0)
+    n_steps = 20
+    abs_ts = np.linspace(INTERVENTION_DAY - 5 * 14, INTERVENTION_DAY + 14 * 14, n_steps)
+    for p in range(8):
+        static = {c: float(rng.uniform(0, 1)) for c in STATIC_COVARS}
+        for t, at in enumerate(abs_ts, start=1):
+            rows.append(
+                {
+                    "parameter_index": p,
+                    "simulation_index": 0,
+                    "global_index": p,
+                    "timesteps": t,
+                    "abs_timesteps": float(at),
+                    "prevalence": float(rng.uniform(0.05, 0.9)),
+                    "cases": float(rng.uniform(0.5, 50.0)),
+                    "exposure_pd": float(rng.uniform(100, 1000)),
+                    **static,
+                }
+            )
+    return pd.DataFrame(rows)
+
+
 def make_cfg(tmp_path, predictor="prevalence", **overrides):
     cfg = OmegaConf.create(
         {
