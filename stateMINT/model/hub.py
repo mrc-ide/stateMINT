@@ -102,7 +102,7 @@ def load_model_artifact(
 
     Expected artifact layout:
         model_config.json
-        preprocessing.json
+        preprocessing_config.json
         checkpoint/
 
     Args:
