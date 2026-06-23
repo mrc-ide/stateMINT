@@ -30,7 +30,9 @@ def test_from_cfg_builds_model(tiny_model_kwargs):
 
 @pytest.mark.skip(reason="This test is for profiling and not for regular test runs.")
 def test_train_config_forward_pass_time(pretrained_input):
-    model = Mamba2Regressor(input_dim=pretrained_input.shape[-1], d_model=256, d_state=64, rngs=nnx.Rngs(0))
+    model = Mamba2Regressor(
+        input_dim=pretrained_input.shape[-1], d_model=256, d_state=128, n_layers=2, rngs=nnx.Rngs(0)
+    )
     model.eval()
 
     # Warm up compilation before measuring the JIT-compiled forward pass.
