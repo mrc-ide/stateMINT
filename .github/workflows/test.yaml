@@ -23,6 +23,6 @@ jobs:
       - name: Set up Python
         run: uv python install
       - name: Install the project
-        run: uv sync --locked --all-extras --dev
+        run: uv sync --locked
       - name: Run tests
         run: uv run pytest -m "not local and not slow"
