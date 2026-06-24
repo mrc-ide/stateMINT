@@ -81,6 +81,8 @@ def main(cfg: DictConfig) -> None:
 
     total_steps = cfg.num_epochs * len(prepared_data.train_data) // cfg.batch_size
     log.info(f"Total training steps: {total_steps}")
+    if total_steps < 1:
+        raise ValueError("Total training steps < 1. Check batch size and number of epochs.")
     optimizer = create_optimizer(model, cfg.lr, total_steps, cfg.weight_decay)
 
     # ------------------- training loop -----------------------------

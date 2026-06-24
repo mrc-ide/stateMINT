@@ -19,7 +19,7 @@ def test_perfect_prediction_metrics():
 def test_basic_metric_values():
     preds = jnp.array([2.0, 4.0])
     targets = jnp.array([0.0, 0.0])
-    assert float(M.mse(preds, targets)) == 10.0  # (4 + 16) / 2
+    assert float(M.mse(preds, targets)) == 10.0
     assert float(M.rmse(preds, targets)) == pytest.approx(np.sqrt(10.0))
     assert float(M.mae(preds, targets)) == 3.0
     assert float(M.bias(preds, targets)) == 3.0

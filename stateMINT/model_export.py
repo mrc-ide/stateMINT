@@ -9,7 +9,7 @@ from orbax.checkpoint import v1 as ocp
 
 from stateMINT.data import (
     AFTER_INTERVENTION_COVARS,
-    BURNIN_DAY,
+    MODEL_START_DAY,
     INTERVENTION_DAY,
     STATIC_COVARS,
     TOTAL_DAYS,
@@ -63,13 +63,13 @@ def main(cfg: DictConfig) -> None:
         output_dim=cfg.output_dim,
         dropout=cfg.dropout,
     )
-    n_steps = (TOTAL_DAYS - BURNIN_DAY) // cfg.window_size + 1
+    n_steps = (TOTAL_DAYS - MODEL_START_DAY) // cfg.window_size + 1
     preprocessing_config = dict(
         static_covars=STATIC_COVARS,
         after_intervention=AFTER_INTERVENTION_COVARS,
         intervention_day=INTERVENTION_DAY,
         n_steps=n_steps,
-        burnin_day=BURNIN_DAY,
+        model_start_day=MODEL_START_DAY,
         window_size=cfg.window_size,
         use_cyclical_time=cfg.use_cyclical_time,
         predictor=cfg.predictor,

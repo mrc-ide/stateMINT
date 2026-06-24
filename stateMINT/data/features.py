@@ -16,7 +16,7 @@ STATIC_COVARS = [
 ]
 AFTER_INTERVENTION_COVARS = ["dn0_future", "itn_future", "irs_future", "lsm", "routine"]
 INTERVENTION_DAY = 9 * 365
-BURNIN_DAY = 6 * 365  # 2190 — kept window starts here
+MODEL_START_DAY = 6 * 365  # 2190 — kept window starts here
 TOTAL_DAYS = 12 * 365  # 6yr warmup + 6yr sim
 
 

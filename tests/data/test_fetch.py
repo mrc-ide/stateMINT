@@ -28,63 +28,28 @@ def _make_db(db_path, n_days=400):
                 **{c: 0.5 for c in STATIC_COVARS},
             }
         )
-    con = duckdb.connect(str(db_path))
-    con.execute(
-        """
-        CREATE TABLE simulation_results (
-            parameter_index INTEGER,
-            simulation_index INTEGER,
-            global_index INTEGER,
-            timesteps INTEGER,
-            n_detect_lm_0_1825 DOUBLE,
-            n_age_0_1825 DOUBLE,
-            n_inc_clinical_0_36500 DOUBLE,
-            n_age_0_36500 DOUBLE,
-            eir DOUBLE,
-            dn0_use DOUBLE,
-            dn0_future DOUBLE,
-            Q0 DOUBLE,
-            phi_bednets DOUBLE,
-            seasonal DOUBLE,
-            routine DOUBLE,
-            itn_use DOUBLE,
-            irs_use DOUBLE,
-            itn_future DOUBLE,
-            irs_future DOUBLE,
-            lsm DOUBLE
-        )
-        """
+    int_columns = {"parameter_index", "simulation_index", "global_index", "timesteps"}
+    columns = [
+        "parameter_index",
+        "simulation_index",
+        "global_index",
+        "timesteps",
+        "n_detect_lm_0_1825",
+        "n_age_0_1825",
+        "n_inc_clinical_0_36500",
+        "n_age_0_36500",
+        *STATIC_COVARS,
+    ]
+    column_defs = ", ".join(
+        f"{c} {'INTEGER' if c in int_columns else 'DOUBLE'}" for c in columns
     )
+    placeholders = ", ".join("?" * len(columns))
+
+    con = duckdb.connect(str(db_path))
+    con.execute(f"CREATE TABLE simulation_results ({column_defs})")
     con.executemany(
-        """
-        INSERT INTO simulation_results VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        [
-            (
-                row["parameter_index"],
-                row["simulation_index"],
-                row["global_index"],
-                row["timesteps"],
-                row["n_detect_lm_0_1825"],
-                row["n_age_0_1825"],
-                row["n_inc_clinical_0_36500"],
-                row["n_age_0_36500"],
-                row["eir"],
-                row["dn0_use"],
-                row["dn0_future"],
-                row["Q0"],
-                row["phi_bednets"],
-                row["seasonal"],
-                row["routine"],
-                row["itn_use"],
-                row["irs_use"],
-                row["itn_future"],
-                row["irs_future"],
-                row["lsm"],
-            )
-            for row in rows
-        ],
+        f"INSERT INTO simulation_results VALUES ({placeholders})",
+        [tuple(row[c] for c in columns) for row in rows],
     )
     con.close()
 

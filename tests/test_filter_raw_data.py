@@ -6,7 +6,7 @@ from stateMINT.data import STATIC_COVARS
 
 
 def _make_db(db_path, n_days=400, n_params=1):
-    base = 2190  # 6 * 365 (BURNIN_DAY)
+    base = 2190  # 6 * 365 (MODEL_START_DAY)
     rows = [
         {
             "parameter_index": p,

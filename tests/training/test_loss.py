@@ -12,7 +12,7 @@ def test_unweighted_mse_is_plain_mean():
 
 def test_weighted_mse_respects_weights():
     pred = jnp.array([0.0, 0.0])
-    target = jnp.array([2.0, 4.0])  # squared errors: 4, 16
+    target = jnp.array([2.0, 4.0])
     w = jnp.array([1.0, 0.0])  # only first sample counts
     assert float(weighted_mse(pred, target, w)) == 4.0
 

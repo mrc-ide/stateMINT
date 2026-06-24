@@ -2,7 +2,7 @@
 name = "mintstate"
 dynamic = ["version"]
 description = "StateMINT is a state space based neural network emulator for malariasimulation."
-authors = [{ name = "Anmol Thapar", email = "mr.anmolthapar@gmail.com" }]
+authors = [{ name = "Anmol Thapar", email = "mr.anmolthapar@gmail.com" }, {name = "Cosmo Santoni", email = "cosmo.santoni@imperial.ac.uk"}]
 readme = "README.md"
 requires-python = ">=3.12"
 

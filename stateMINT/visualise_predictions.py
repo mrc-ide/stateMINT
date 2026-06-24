@@ -28,7 +28,6 @@ def main(cfg: DictConfig) -> None:
     raw_df = duckdb.read_parquet(cfg.data_file).df()
 
     prepared_data = prepare_data(raw_df, cfg)
-    # TODO: do we need to make loader or just pass test_data straight.
     test_loader = make_loader(
         data=prepared_data.test_data,
         batch_size=1,

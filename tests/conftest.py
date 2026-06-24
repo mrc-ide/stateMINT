@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from omegaconf import OmegaConf
 
-from stateMINT.data import AFTER_INTERVENTION_COVARS, BURNIN_DAY, INTERVENTION_DAY, STATIC_COVARS, StandardScaler
+from stateMINT.data import AFTER_INTERVENTION_COVARS, MODEL_START_DAY, INTERVENTION_DAY, STATIC_COVARS, StandardScaler
 
 
 INFERENCE_N_STEPS = 157
@@ -133,7 +133,7 @@ def preprocessing_config_factory():
             "use_cyclical_time": True,
             "window_size": 14,
             "n_steps": n_steps,
-            "burnin_day": BURNIN_DAY,
+            "model_start_day": MODEL_START_DAY,
             "predictor": predictor,
         }
         config.update(overrides)

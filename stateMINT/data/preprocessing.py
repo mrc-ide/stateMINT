@@ -13,7 +13,7 @@ from ..common.dataclasses import Predictor
 from ..common.utils import transform_targets_np
 from .features import (
     AFTER_INTERVENTION_COVARS,
-    BURNIN_DAY,
+    MODEL_START_DAY,
     INTERVENTION_DAY,
     STATIC_COVARS,
     StandardScaler,
@@ -48,8 +48,8 @@ def prepare_data(df: pd.DataFrame, cfg: DictConfig):
     train/val/test split, fits static covariate scaling on the train split only,
     and builds per-sequence records for each split.
 
-    Note: each malariasimulation run covers TOTAL_DAYS days: a BURNIN_DAY's warmup followed by
-    TOTAL_DAYS - BURNIN_DAY days of actual simulation. Only the latter are used here; the
+    Note: each malariasimulation run covers TOTAL_DAYS days: a MODEL_START_DAY's warmup followed by
+    TOTAL_DAYS - MODEL_START_DAY days of actual simulation. Only the latter are used here; the
     warmup has already been discarded in the input `df` parameter.
     The intervention is applied at INTERVENTION_DAY.
 
@@ -134,24 +134,24 @@ def build_feature_matrix(
     )
 
 
-def build_timestep_grid(window_size: int, n_steps: int, burnin_day: int = BURNIN_DAY) -> tuple[np.ndarray, np.ndarray]:
+def build_timestep_grid(window_size: int, n_steps: int, model_start_day: int = MODEL_START_DAY) -> tuple[np.ndarray, np.ndarray]:
     """
     Regenerate the (abs_t, t) grid the fetch/windowing step produces.
 
     Mirrors fetch.py: group_id = floor((abs - burnin) / window_size), and per group
-    abs_timesteps = min(abs) = burnin_day + group_id * window_size, with timesteps the
+    abs_timesteps = min(abs) = model_start_day + group_id * window_size, with timesteps the
     1-based row number.
 
     Args:
         window_size: Days aggregated per timestep.
         n_steps: Number of timesteps (sequence length).
-        burnin_day: Absolute day the kept window starts.
+        model_start_day: Absolute day the kept window starts.
 
     Returns:
         abs_t: Absolute timesteps (float32, shape n_steps).
         t: Relative timesteps 1..n_steps (float32, shape n_steps).
     """
-    abs_t = np.arange(burnin_day, burnin_day + window_size * n_steps, window_size, dtype=np.float32)
+    abs_t = np.arange(model_start_day, model_start_day + window_size * n_steps, window_size, dtype=np.float32)
     t = np.arange(1, n_steps + 1, dtype=np.float32)
     return abs_t, t
 
@@ -182,7 +182,7 @@ def build_inference_inputs(
     )
 
     abs_t, t = build_timestep_grid(
-        preprocessing_config["window_size"], preprocessing_config["n_steps"], preprocessing_config["burnin_day"]
+        preprocessing_config["window_size"], preprocessing_config["n_steps"], preprocessing_config["model_start_day"]
     )
     batch = []
     for covars in static_covars:
@@ -340,6 +340,7 @@ def _fit_scaler(df: pd.DataFrame, train_ps: set[tuple[int, int]], output_dir: st
     scaler.fit(train_static)
 
     save_path = Path(output_dir) / "static_scaler.pkl"
+    save_path.parent.mkdir(parents=True, exist_ok=True)
     with open(save_path, "wb") as f:
         pickle.dump(scaler, f)
 

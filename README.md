@@ -388,7 +388,3 @@ artifacts/               # exported model artifact examples/metadata
 viz_outputs/             # generated prediction visualization outputs
 ```
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and the
-development workflow.

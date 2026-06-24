@@ -105,7 +105,7 @@ def _build_data(
     sampled_sims_query: str,
     window_size: int,
     predictor: Literal["prevalence", "cases"],
-    burnin_day: int,
+    model_start_day: int,
 ) -> str:
     """Build the final windowed feature/target SQL query."""
 
@@ -127,12 +127,12 @@ def _build_data(
         grouped AS (
             SELECT
                 parameter_index, simulation_index, global_index,
-                FLOOR((abs_timesteps - {burnin_day}) / {window_size}) AS group_id,
+                FLOOR((abs_timesteps - {model_start_day}) / {window_size}) AS group_id,
                 {predictor_grouped_aggregates},
                 MIN(abs_timesteps) AS abs_timesteps,
                 {static_grouped_aggregates}
             FROM cte
-            WHERE abs_timesteps >= {burnin_day}
+            WHERE abs_timesteps >= {model_start_day}
             GROUP BY 1, 2, 3, 4
         )
         SELECT
@@ -165,8 +165,6 @@ def save_fetched_filtered_data(
     t0 = time.perf_counter()
 
     con = duckdb.connect(db_path, read_only=True)
-    con.execute("PRAGMA memory_limit='32GB';")
-    con.execute("PRAGMA threads=16;")
 
     sampled_sims_query = _build_sampled_sims_query(
         table_name=table_name,
@@ -179,7 +177,7 @@ def save_fetched_filtered_data(
         sampled_sims_query=sampled_sims_query,
         window_size=window_size,
         predictor=predictor,
-        burnin_day=6 * 365,
+        model_start_day=6 * 365,
     )
 
     out_path = Path(output_folder) / f"filtered_data_{predictor}.parquet"

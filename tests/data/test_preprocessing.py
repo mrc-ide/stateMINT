@@ -16,7 +16,7 @@ from stateMINT.data.preprocessing import (
 from stateMINT.data import (
     STATIC_COVARS,
     INTERVENTION_DAY,
-    BURNIN_DAY,
+    MODEL_START_DAY,
     TOTAL_DAYS,
     StandardScaler,
 )
@@ -263,16 +263,16 @@ def test_build_feature_matrix_column_layout(base_static, straddling_abs_t, ident
 
 
 def test_build_timestep_grid_shapes_and_step():
-    abs_t, t = build_timestep_grid(window_size=14, n_steps=157, burnin_day=BURNIN_DAY)
+    abs_t, t = build_timestep_grid(window_size=14, n_steps=157, model_start_day=MODEL_START_DAY)
     assert abs_t.shape == (157,) and t.shape == (157,)
-    assert abs_t[0] == BURNIN_DAY
+    assert abs_t[0] == MODEL_START_DAY
     np.testing.assert_array_equal(np.diff(abs_t), 14.0)
     np.testing.assert_array_equal(t, np.arange(1, 158, dtype=np.float32))
 
 
 def test_build_timestep_grid_matches_export_window_count():
     # 14-day windows over the kept simulation span give the 157 steps the export records.
-    n_steps = (TOTAL_DAYS - BURNIN_DAY) // 14 + 1
+    n_steps = (TOTAL_DAYS - MODEL_START_DAY) // 14 + 1
     abs_t, _ = build_timestep_grid(14, n_steps)
     assert len(abs_t) == 157
     assert abs_t[-1] <= TOTAL_DAYS
@@ -290,7 +290,7 @@ def test_build_inference_inputs_shape_and_dtype(static_covar_dicts, identity_sca
 def test_build_inference_inputs_matches_build_feature_matrix(static_covar_dicts, identity_scaler, preprocessing_config):
     # Each batch row must equal a direct build_feature_matrix call on the same covars.
     X = build_inference_inputs(static_covar_dicts, identity_scaler, preprocessing_config)
-    abs_t, t = build_timestep_grid(14, 157, BURNIN_DAY)
+    abs_t, t = build_timestep_grid(14, 157, MODEL_START_DAY)
     base_static = np.array([static_covar_dicts[0][c] for c in STATIC_COVARS], dtype=np.float32)
     expected = build_feature_matrix(base_static, abs_t, t, identity_scaler)
     np.testing.assert_allclose(X[0], expected, rtol=1e-6)

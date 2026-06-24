@@ -8,7 +8,7 @@
             "name": "Debug run train",
             "type": "debugpy",
             "request": "launch",
-            "python": "/home/anmol/code/stateMINT/.venv/bin/python",
+            "python": "${workspaceFolder}/.venv/bin/python",
             "module": "stateMINT.viz",
             // "args": [
             //     "num_epochs=10",
@@ -26,7 +26,7 @@
             "name": "debug test function",
             "type": "debugpy",
             "request": "launch",
-            "python": "/home/anmol/code/stateMINT/.venv/bin/python",
+            "python": "${workspaceFolder}/.venv/bin/python",
             "module": "pytest",
             "args": [
                 "tests/model/test_mamba2.py",
