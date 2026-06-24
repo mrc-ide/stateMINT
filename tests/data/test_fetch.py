@@ -40,9 +40,7 @@ def _make_db(db_path, n_days=400):
         "n_age_0_36500",
         *STATIC_COVARS,
     ]
-    column_defs = ", ".join(
-        f"{c} {'INTEGER' if c in int_columns else 'DOUBLE'}" for c in columns
-    )
+    column_defs = ", ".join(f"{c} {'INTEGER' if c in int_columns else 'DOUBLE'}" for c in columns)
     placeholders = ", ".join("?" * len(columns))
 
     con = duckdb.connect(str(db_path))

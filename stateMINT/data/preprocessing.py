@@ -134,7 +134,9 @@ def build_feature_matrix(
     )
 
 
-def build_timestep_grid(window_size: int, n_steps: int, model_start_day: int = MODEL_START_DAY) -> tuple[np.ndarray, np.ndarray]:
+def build_timestep_grid(
+    window_size: int, n_steps: int, model_start_day: int = MODEL_START_DAY
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Regenerate the (abs_t, t) grid the fetch/windowing step produces.
 
