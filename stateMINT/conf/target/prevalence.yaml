@@ -1,0 +1,14 @@
+# @package _global_
+
+predictor: prevalence
+
+# Data
+min_prevalence: 0.01
+ylabel: "Prevalence"
+
+# Model
+dropout: 0.24
+
+# Hyperparameters
+lr: 4e-4
+

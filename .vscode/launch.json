@@ -4,31 +4,43 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
         {
-            "name": "Python Debugger: Current File",
+            "name": "Debug run train",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Debug run benchmark",
-            "type": "debugpy",
-            "request": "launch",
-            "python": "/home/anmol/code/stateMINT/.venv/bin/python",
-            "module": "stateMINT.train",
-            "args": [
-                // "-m",
-                // "stateMINT.train",
-            ],
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "module": "stateMINT.viz",
+            // "args": [
+            //     "num_epochs=10",
+            // ],
             "env": {
                 // "JAX_DISABLE_JIT": "true",
                 // "UV_MANAGED_PYTHON": "true"
+                "CUDA_VISIBLE_DEVICES": "1"
             },
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "justMyCode": false
-        }
+        },
+        {
+            "name": "debug test function",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "module": "pytest",
+            "args": [
+                "tests/model/test_mamba2.py",
+                "-k",
+                "test_prevalence_from_pretrained_from_hub"
+            ],
+            "env": {
+                // "JAX_DISABLE_JIT": "true",
+                // "UV_MANAGED_PYTHON": "true"
+                // "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false
+        },
     ]
 }

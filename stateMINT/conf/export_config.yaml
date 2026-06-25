@@ -1,0 +1,25 @@
+predictor: prevalence
+
+# Data
+eps_prevalence: 1.0e-5
+scaler_file: train_outputs/${predictor}/static_scaler.pkl
+window_size: 14
+use_cyclical_time: true
+
+# Model - ensure these match the checkpointed model's parameters
+n_layers: 2
+d_conv: 4
+expand: 2
+head_dim: 64
+chunk_size: 256
+output_dim: 1
+d_model: 256
+d_state: 128
+dropout: 0.57
+
+# Checkpointing
+checkpoint_dir: ???
+
+# General
+seed: 42
+artifact_dir: "artifacts/${predictor}"

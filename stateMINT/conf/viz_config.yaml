@@ -1,0 +1,31 @@
+defaults:
+  - _self_
+  - target: prevalence
+
+# Data
+data_file: "data/filtered_data_${predictor}.parquet"
+split_file: "data/split_${predictor}.csv"
+num_workers: 0
+use_existing_split: true
+eps_prevalence: 1.0e-5
+window_size: 14
+use_cyclical_time: true
+
+# Model - ensure these match the checkpointed model's parameters
+n_layers: 2
+d_conv: 4
+expand: 2
+head_dim: 64
+chunk_size: 256
+output_dim: 1
+d_model: 256
+d_state: 128
+dropout: 0.3
+
+# Checkpointing
+checkpoint_dir: ???
+
+# General
+seed: 42
+output_dir: "viz_outputs/${predictor}"
+plot_file: "${output_dir}/preds-vs-targets.pdf"

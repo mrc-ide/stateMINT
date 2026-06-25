@@ -1,0 +1,46 @@
+program: stateMINT/train.py
+project: stateMINT-sweep
+name: sweep-prevalence
+method: bayes
+metric:
+  goal: minimize
+  name: val/loss
+
+# early_terminate:
+#   type: hyperband
+#   min_iter: 40
+#   eta: 3
+
+parameters:
+  lr:
+    distribution: log_uniform_values
+    min: 0.00009
+    max: 0.001
+  dropout:
+    distribution: uniform
+    min: 0.05
+    max: 0.3
+  batch_size:
+    values: [128]
+
+  # model-specific
+  d_state:
+    values: [128]
+  d_model:
+    values: [256]
+  n_layers:
+    values: [2]
+
+
+command:
+  - ${env}
+  - python
+  - -m
+  - stateMINT.train
+  - "hydra.output_subdir=null"
+  - "hydra.run.dir=."
+  - ${args_no_hyphens}
+  - target=prevalence
+  - use_wandb=true
+  - num_epochs=300
+  - patience=100

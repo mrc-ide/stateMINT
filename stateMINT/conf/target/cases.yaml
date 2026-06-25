@@ -1,0 +1,14 @@
+# @package _global_
+
+predictor: cases
+
+# Data
+min_cases: 0.1
+ylabel: "Cases per 1000 per day"
+
+# Model
+dropout: 0.57
+
+# Hyperparameters
+lr: 8e-3
+

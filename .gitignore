@@ -7,6 +7,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+artifacts/
 .Python
 build/
 develop-eggs/
@@ -71,10 +72,6 @@ instance/
 # Sphinx documentation
 docs/_build/
 
-# PyBuilder
-.pybuilder/
-target/
-
 # Jupyter Notebook
 .ipynb_checkpoints
 
@@ -125,11 +122,15 @@ cython_debug/
 
 # testing scripts
 *.ipynb
+x.py
 
 # hydra logs
 outputs
 
 # misc
 inputs
-data/
+/data/
 ref.py
+train_outputs/
+wandb/
+viz_outputs/
