@@ -71,7 +71,7 @@ class Mamba2Regressor(nnx.Module):
         )
         self.mamba2 = Mamba2Model(cfg, rngs=rngs)
         self.dropout = nnx.Dropout(dropout, rngs=rngs)
-        self.output_proj = nnx.Linear(d_model, output_dim, rngs=rngs)  # TODO: maybe more layers here?
+        self.output_proj = nnx.Linear(d_model, output_dim, rngs=rngs)
 
     @jax.named_scope("Mamba2Regressor")
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:

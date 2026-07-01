@@ -141,6 +141,7 @@ def main(cfg: DictConfig) -> None:
                 if patience_n >= cfg.patience:
                     tqdm.write(f"No improvement for {patience_n} epochs, stopping training.")
                     break
+        ckpt.ckptr.wait() # wait for async checkpoint saving to finish
 
         # ------------ test evaluation ----------------
         model, _, _, _ = init_or_restore_last(ckpt.ckptr, ckpt.model, ckpt.optimizer, restore_checkpoint=True)

@@ -99,7 +99,7 @@ class CheckpointSession:
             return False
 
         self.best_val_loss = val_loss
-        self.ckptr.save_checkpointables(
+        self.ckptr.save_checkpointables_async(
             epoch,
             {
                 "model": nnx.state(self.model),
