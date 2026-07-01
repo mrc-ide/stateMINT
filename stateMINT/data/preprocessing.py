@@ -273,7 +273,7 @@ def _create_split(
     Returns:
         Train, validation, and test parameter-simulation sets.
     """
-    random.seed(seed)  # TODO: check seeds set correctly!!
+    random.seed(seed)
     params = list(df["parameter_index"].unique())
     random.shuffle(params)
     n = len(params)

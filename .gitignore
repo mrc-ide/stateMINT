@@ -134,3 +134,4 @@ ref.py
 train_outputs/
 wandb/
 viz_outputs/
+*.out
